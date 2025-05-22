@@ -48,6 +48,26 @@ JWT_EXPIRES_IN=7d
 
 Replace `your_mysql_password` with your actual MySQL password and `your_secret_key` with a secure random string for JWT token signing.
 
+2. Create a `.env` file in the root directory for frontend environment variables:
+
+```bash
+# Create .env file in the root directory
+VUE_APP_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+### Setting up Google OAuth
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Go to "APIs & Services" > "Credentials"
+4. Click "Create Credentials" > "OAuth client ID"
+5. Configure the consent screen with your app information
+6. Select "Web application" as the application type
+7. Add your domain to the "Authorized JavaScript origins" (e.g., http://localhost:8080 for development)
+8. Add your redirect URI to the "Authorized redirect URIs" (e.g., http://localhost:8080)
+9. Click "Create" and copy the Client ID
+10. Paste the Client ID in your `.env` file as the `VUE_APP_GOOGLE_CLIENT_ID` value
+
 ### Installing Dependencies
 
 ```bash

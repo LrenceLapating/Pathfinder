@@ -21,12 +21,19 @@ export const oauthConfig = {
   // You should create your own client ID at https://console.cloud.google.com/
   googleClientId: '574503537060-perciephlgf4lqstj198g8d56st3ppf5.apps.googleusercontent.com',
   
-  // Add other OAuth providers here if needed
+  // Authorized domains for Google OAuth
+  authorizedDomains: [
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    window.location.origin // Automatically include the current domain
+  ]
 };
 
 // Export individual provider settings for convenience
 export const googleOAuthConfig = {
-  clientId: oauthConfig.googleClientId
+  clientId: oauthConfig.googleClientId,
+  authorizedDomains: oauthConfig.authorizedDomains
 };
 
 export default oauthConfig; 

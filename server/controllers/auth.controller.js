@@ -157,6 +157,14 @@ exports.googleAuth = async (req, res) => {
     // If not found by Google ID, check by email
     if (!user) {
       user = await User.findByEmail(email);
+      
+      // If user exists with this email but not linked to Google
+      if (user && !user.googleId) {
+        return res.status(400).json({
+          success: false,
+          message: 'This email is already registered with a password. Please sign in with your password or reset it if forgotten.'
+        });
+      }
     }
 
     // If user exists, update Google ID if needed

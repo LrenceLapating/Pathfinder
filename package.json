@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build",
+    "serve:vue": "FRAMEWORK=vue vue-cli-service serve",
+    "serve:react": "FRAMEWORK=react react-scripts start",
+    "build:vue": "FRAMEWORK=vue vue-cli-service build",
+    "build:react": "FRAMEWORK=react react-scripts build",
     "start": "node server/index.js",
     "dev": "nodemon server/index.js"
   },

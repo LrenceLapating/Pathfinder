@@ -7,9 +7,9 @@
 </template>
 
 <script>
-import SignIn from './components/SignIn.vue'
-import SignUp from './components/SignUp.vue'
-import { googleOAuthConfig } from './config/oauth'
+import SignIn from '../components/SignIn.vue'
+import SignUp from '../components/SignUp.vue'
+import { googleOAuthConfig } from '../../config/oauth/google.js'
 
 export default {
   name: 'App',
@@ -19,7 +19,9 @@ export default {
   },
   data() {
     return {
-      googleScriptLoaded: false
+      googleScriptLoaded: false,
+      googleInitRetries: 0,
+      maxRetries: 3
     }
   },
   created() {
@@ -34,21 +36,15 @@ export default {
   },
   methods: {
     loadGoogleAPI() {
-      console.log('Attempting to load Google API script');
-      
       // Prevent loading the script multiple times
       if (document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
-        console.log('Google API script tag already exists in document');
         // Script tag exists, check if API is actually loaded
         if (window.google && window.google.accounts) {
-          console.log('Google API already loaded, initializing');
           this.initializeGoogleAPI();
         } else {
-          console.log('Google API script exists but not loaded yet, waiting');
           // Script exists but API not loaded yet, wait for it
           const checkInterval = setInterval(() => {
             if (window.google && window.google.accounts) {
-              console.log('Google API loaded after interval check');
               clearInterval(checkInterval);
               this.initializeGoogleAPI();
             }
@@ -58,90 +54,98 @@ export default {
       }
       
       // Create script element to load Google Platform Library
-      console.log('Creating new Google API script tag');
       const googleScript = document.createElement('script');
       googleScript.src = 'https://accounts.google.com/gsi/client';
       googleScript.async = true;
       googleScript.defer = true;
       googleScript.onload = () => {
-        console.log('Google API script loaded via onload event');
         // Wait a moment to ensure Google API is fully initialized
         setTimeout(() => {
-          if (window.google && window.google.accounts) {
-            console.log('Google API object available after script load');
-            this.initializeGoogleAPI();
-          } else {
-            console.warn('Google API object not available after script load');
-          }
-        }, 500); // Increased timeout to ensure API is fully loaded
+          this.initializeGoogleAPI();
+        }, 300); // Increased timeout to ensure API is fully loaded
       };
       googleScript.onerror = (error) => {
         console.error('Failed to load Google API script:', error);
+        // Try to reload the script after a delay
+        if (this.googleInitRetries < this.maxRetries) {
+          this.googleInitRetries++;
+          setTimeout(() => {
+            console.log(`Retrying Google API load (${this.googleInitRetries}/${this.maxRetries})...`);
+            this.loadGoogleAPI();
+          }, 1000);
+        }
       };
       document.head.appendChild(googleScript);
     },
     
     initializeGoogleAPI() {
       if (window.google && window.google.accounts) {
-        this.googleScriptLoaded = true;
-        
-        // Log the client ID being used
-        console.log('App level: Initializing Google API with client ID:', googleOAuthConfig.clientId);
-        
-        // Initialize Google API with our client ID and improved configuration
-        window.google.accounts.id.initialize({
-          client_id: googleOAuthConfig.clientId,
-          callback: this.handleGoogleCallback,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-          ux_mode: 'popup',
-          itp_support: true
-        });
-        
-        // Dispatch an event to notify components that Google API is ready
-        window.dispatchEvent(new CustomEvent('google-api-loaded'));
-        console.log('Google API initialized successfully');
+        try {
+          this.googleScriptLoaded = true;
+          
+          // Initialize Google API with our client ID and more options
+          window.google.accounts.id.initialize({
+            client_id: googleOAuthConfig.clientId,
+            callback: this.handleGoogleCallback,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            prompt_parent_id: 'g_id_onload', // Specify container for the One Tap prompt
+            context: 'use', // General context
+            ux_mode: 'popup', // Use popup mode for better mobile experience
+            itp_support: true // Support for iOS Intelligent Tracking Prevention
+          });
+          
+          // Add a hidden div for One Tap prompt if it doesn't exist
+          if (!document.getElementById('g_id_onload')) {
+            const oneTapContainer = document.createElement('div');
+            oneTapContainer.id = 'g_id_onload';
+            oneTapContainer.style.position = 'fixed';
+            oneTapContainer.style.top = '0';
+            oneTapContainer.style.right = '0';
+            oneTapContainer.style.width = '0';
+            oneTapContainer.style.height = '0';
+            oneTapContainer.style.visibility = 'hidden';
+            document.body.appendChild(oneTapContainer);
+          }
+          
+          // Dispatch an event to notify components that Google API is ready
+          window.dispatchEvent(new CustomEvent('google-api-loaded'));
+          console.log('Google API initialized successfully');
+        } catch (error) {
+          console.error('Error initializing Google API:', error);
+          // Try to reinitialize after a delay
+          if (this.googleInitRetries < this.maxRetries) {
+            this.googleInitRetries++;
+            setTimeout(() => {
+              console.log(`Retrying Google API initialization (${this.googleInitRetries}/${this.maxRetries})...`);
+              this.initializeGoogleAPI();
+            }, 1000);
+          }
+        }
       } else {
         console.warn('Google API not available yet');
+        // Try to reload the script after a delay
+        if (this.googleInitRetries < this.maxRetries) {
+          this.googleInitRetries++;
+          setTimeout(() => {
+            console.log(`Waiting for Google API (${this.googleInitRetries}/${this.maxRetries})...`);
+            this.loadGoogleAPI();
+          }, 1000);
+        }
       }
     },
     
     handleGoogleCallback(response) {
       // This is a fallback handler - the actual handling will be done in the auth components
-      console.log('Google auth callback received at App level. Response type:', typeof response);
+      console.log('Google auth callback received at App level');
       
-      // Log response details for debugging
-      if (typeof response === 'object') {
-        console.log('Response keys:', Object.keys(response));
-        if (response.credential) {
-          console.log('Credential exists in response');
-        } else {
-          console.log('No credential in response');
-        }
-      } else if (typeof response === 'string') {
-        console.log('Response is a string (likely a token)');
-      } else {
-        console.log('Response is type:', typeof response);
-      }
-      
-      // Make sure we have a valid response before dispatching the event
       if (!response) {
         console.error('Empty response in App-level Google callback');
-        // Try to prompt Google One Tap again
-        try {
-          if (window.google && window.google.accounts) {
-            console.log('Attempting to prompt Google sign-in again');
-            window.google.accounts.id.prompt();
-          }
-        } catch (err) {
-          console.error('Error prompting Google sign-in:', err);
-        }
         return;
       }
       
       // Dispatch an event with the response for auth components to handle
       try {
-        console.log('Dispatching google-auth-response event');
         window.dispatchEvent(new CustomEvent('google-auth-response', { 
           detail: { response }
         }));
@@ -181,4 +185,4 @@ body, html {
   padding: 0;
   font-family: 'Noto Sans', sans-serif;
 }
-</style>
+</style> 

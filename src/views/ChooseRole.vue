@@ -166,6 +166,9 @@ export default {
           return;
         }
         
+        // Get the current user data from localStorage
+        const userData = JSON.parse(localStorage.getItem('pathfinder_user') || '{}');
+        
         // Prepare the data to send based on selected role
         const profileData = {
           role: this.selectedRole,
@@ -174,7 +177,7 @@ export default {
         };
         
         // Send profile data to backend
-        const response = await fetch('http://localhost:5000/api/users/profile', {
+        const response = await fetch('http://localhost:5000/api/auth/profile', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -189,12 +192,16 @@ export default {
           throw new Error(data.message || 'Failed to save profile');
         }
         
+        // Update user data in localStorage with the new role
+        userData.role = this.selectedRole;
+        localStorage.setItem('pathfinder_user', JSON.stringify(userData));
+        
         // Store user role in localStorage
         localStorage.setItem('pathfinder_user_role', this.selectedRole);
         
         // Redirect based on role
         if (this.selectedRole === 'student') {
-          this.$router.push('/student-dashboard');
+          this.$router.push('/student');
         } else if (this.selectedRole === 'teacher') {
           this.$router.push('/teacher-dashboard');
         }

@@ -104,6 +104,15 @@
             <!-- Google Sign-In button container -->
             <div id="google-signup-button" class="google-signin-container"></div>
             
+            <!-- Fallback Google button in case the official one doesn't work -->
+            <button 
+              v-if="!googleScriptLoaded" 
+              class="fallback-google-button"
+              @click="manualGoogleSignIn"
+            >
+              Continue with Google
+            </button>
+            
             <div class="signin-link">
               Already have an account? <a href="#" @click.prevent="switchToSignIn">Sign In</a>
             </div>
@@ -221,7 +230,29 @@ export default {
         const data = await response.json();
         
         if (!response.ok) {
-          throw new Error(data.message || 'Registration failed');
+          // Check if the error is due to email already in use
+          if (data.message === 'Email already in use') {
+            this.errorMessage = 'This email is already registered. Please sign in instead.';
+            // Add a link to switch to sign in
+            setTimeout(() => {
+              const signInLink = document.createElement('a');
+              signInLink.href = '#';
+              signInLink.textContent = 'Sign in here';
+              signInLink.onclick = (e) => {
+                e.preventDefault();
+                this.switchToSignIn();
+              };
+              
+              const errorElement = document.querySelector('.error-message');
+              if (errorElement) {
+                errorElement.innerHTML += '<br>';
+                errorElement.appendChild(signInLink);
+              }
+            }, 100);
+          } else {
+            throw new Error(data.message || 'Registration failed');
+          }
+          return;
         }
         
         // Store user data and token
@@ -277,13 +308,28 @@ export default {
       try {
         // Use the Google Client ID from our configuration
         const googleClientId = googleOAuthConfig.clientId;
+        console.log('Initializing Google Auth with client ID:', googleClientId);
         
         // Check if Google API is loaded
         if (window.google && window.google.accounts) {
-          // Initialize the Google Identity Services client
+          // Initialize the Google Identity Services client with more options
           window.google.accounts.id.initialize({
             client_id: googleClientId,
-            callback: this.handleGoogleCallback
+            callback: this.handleGoogleCallback,
+            auto_select: false, // Don't auto-select the first account
+            cancel_on_tap_outside: true, // Allow closing the prompt by clicking outside
+            context: 'signup', // Use signup context for better UX
+            ux_mode: 'popup', // Use popup mode for better mobile experience
+            itp_support: true // Support for iOS Intelligent Tracking Prevention
+          });
+          
+          // Configure One Tap prompt
+          window.google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              console.log('One Tap prompt not displayed:', notification.getNotDisplayedReason() || notification.getSkippedReason());
+            } else {
+              console.log('One Tap prompt displayed');
+            }
           });
           
           this.renderGoogleButton();
@@ -308,6 +354,12 @@ export default {
           buttonElement.innerHTML = '';
           
           try {
+            // Create a container with proper styling
+            buttonElement.style.display = 'flex';
+            buttonElement.style.justifyContent = 'center';
+            buttonElement.style.width = '100%';
+            buttonElement.style.marginBottom = '16px';
+            
             // Render the button with proper configuration
             window.google.accounts.id.renderButton(
               buttonElement,
@@ -317,96 +369,265 @@ export default {
                 theme: 'outline', 
                 size: 'large', 
                 text: 'continue_with', 
-                width: '100%',
+                width: buttonElement.offsetWidth || 300,
                 logo_alignment: 'center'
               }
             );
             
             // Make sure the button is displayed and any parent elements are visible
-            buttonElement.style.display = 'flex';
-            buttonElement.style.visibility = 'visible';
-            
-            // Ensure all parent iframes or divs created by Google are visible
             setTimeout(() => {
               const iframes = buttonElement.querySelectorAll('iframe');
               iframes.forEach(iframe => {
                 iframe.style.display = 'block';
                 iframe.style.visibility = 'visible';
                 iframe.style.opacity = '1';
+                iframe.style.width = '100%';
+                iframe.style.height = '40px';
               });
-            }, 100);
+              
+              // Add a fallback button if the iframe is not visible
+              if (iframes.length === 0 || 
+                  (iframes.length > 0 && (iframes[0].offsetHeight === 0 || iframes[0].style.visibility === 'hidden'))) {
+                this.addFallbackGoogleButton(buttonElement);
+              }
+            }, 500);
             
           } catch (error) {
             console.error('Error rendering Google button:', error);
-            buttonElement.innerHTML = '<p class="google-error">Could not render Google Sign-In button</p>';
+            this.addFallbackGoogleButton(buttonElement);
           }
+        } else if (buttonElement) {
+          this.addFallbackGoogleButton(buttonElement);
         }
-      }, 100); // Small delay to ensure DOM is ready
+      }, 300); // Increased delay to ensure DOM is ready
+    },
+    
+    addFallbackGoogleButton(container) {
+      // Add a custom fallback button if the Google button fails to render
+      container.innerHTML = `
+        <button class="fallback-google-button" id="manual-google-signin">
+          <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" width="18" height="18">
+          <span>Continue with Google</span>
+        </button>
+      `;
+      
+      // Add click event to the fallback button
+      const fallbackButton = document.getElementById('manual-google-signin');
+      if (fallbackButton) {
+        fallbackButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.manualGoogleSignIn();
+        });
+      }
+    },
+    
+    manualGoogleSignIn() {
+      // Manually trigger Google sign-in
+      try {
+        if (window.google && window.google.accounts) {
+          console.log('Manually triggering Google sign-in prompt');
+          window.google.accounts.id.prompt();
+        } else {
+          console.error('Google API not available for manual sign-in');
+          this.errorMessage = 'Google Sign-In is not available. Please try again later or use email/password.';
+        }
+      } catch (error) {
+        console.error('Error triggering manual Google sign-in:', error);
+        this.errorMessage = 'Failed to start Google authentication. Please try again.';
+      }
+    },
+    
+    handleGlobalGoogleCallback(event) {
+      console.log('Global Google callback received in SignUp component');
+      
+      // Check if this component is open and the event has data
+      if (this.isOpen) {
+        console.log('SignUp is open, processing global Google callback');
+        
+        // Check if event has the expected structure
+        if (event.detail && event.detail.response) {
+          console.log('Event has detail.response, handling Google callback');
+          this.handleGoogleCallback(event.detail.response);
+        } else {
+          console.error('Invalid event structure in global Google callback');
+          this.errorMessage = 'Authentication error. Please try again.';
+        }
+      } else {
+        console.log('SignUp is not open, ignoring global Google callback');
+      }
     },
     
     async handleGoogleCallback(response) {
       try {
-        // Got Google OAuth JWT token from the response
-        const token = response.credential;
+        console.log('Google callback response (raw):', response);
         
-        // Decode the ID token
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const { sub, email, given_name, family_name, picture } = JSON.parse(jsonPayload);
-        
-        // Prepare user data to send to backend
-        const googleUser = {
-          googleId: sub,
-          email: email,
-          firstName: given_name || 'Google',
-          lastName: family_name || 'User',
-          profilePicture: picture || 'https://via.placeholder.com/150'
-        };
-        
-        // Send Google auth data to backend
-        const response = await fetch('http://localhost:5000/api/auth/google', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(googleUser)
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.message || 'Google authentication failed');
+        // Check if the response exists
+        if (!response) {
+          console.error('Empty response received from Google authentication');
+          // Try to prompt Google One Tap again
+          if (window.google && window.google.accounts) {
+            console.log('Attempting to prompt Google sign-in again');
+            setTimeout(() => {
+              window.google.accounts.id.prompt();
+            }, 500);
+          }
+          throw new Error('Empty response from Google authentication. Please try again.');
         }
         
-        // Store user data and token
-        localStorage.setItem('pathfinder_token', data.token);
-        localStorage.setItem('pathfinder_user', JSON.stringify(data.user));
+        // Different versions of Google Sign-In API might return different response structures
+        let token;
         
-        // Show success message
-        this.successMessage = 'Google authentication successful! Redirecting...';
-        
-        // Close modal and redirect after a short delay
-        setTimeout(() => {
-          this.closeModal();
+        // Handle different response formats
+        if (typeof response === 'string') {
+          // If response is directly a JWT token string
+          token = response;
+          console.log('Response is a direct token string');
+        } else if (response.credential) {
+          // New Google Identity Services format
+          token = response.credential;
+          console.log('Using credential from response');
+        } else if (response.tokenId) {
+          // Legacy Google Sign-In format
+          token = response.tokenId;
+          console.log('Using tokenId from response');
+        } else if (response.token) {
+          // Another possible format
+          token = response.token;
+          console.log('Using token from response');
+        } else if (response.id_token) {
+          // Another possible format
+          token = response.id_token;
+          console.log('Using id_token from response');
+        } else {
+          console.error('Unexpected Google response format:', response);
           
-          // Navigate based on role
-          if (data.user.role) {
-            if (data.user.role === 'student') {
-              this.$router.push('/student');
-            } else if (data.user.role === 'teacher') {
-              this.$router.push('/teacher-dashboard');
-            } else {
-              this.$router.push('/dashboard');
+          // Try to extract any usable token from the response
+          if (typeof response === 'object') {
+            console.log('Response keys:', Object.keys(response));
+            
+            // Last resort: try to find any property that looks like a token
+            for (const key in response) {
+              if (typeof response[key] === 'string' && response[key].includes('.')) {
+                token = response[key];
+                console.log(`Found potential token in property: ${key}`);
+                break;
+              }
             }
-          } else {
-            // If user doesn't have a role yet
-            this.$router.push('/choose-role');
           }
-        }, 1500);
+          
+          if (!token) {
+            throw new Error('Invalid response format from Google authentication');
+          }
+        }
+        
+        if (!token) {
+          console.error('No valid token found in response');
+          throw new Error('No valid authentication token received');
+        }
+        
+        console.log('Token successfully extracted');
+        
+        try {
+          // Decode the ID token
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          
+          console.log('Token decoded successfully');
+          
+          const decodedData = JSON.parse(jsonPayload);
+          console.log('Decoded payload:', decodedData);
+          
+          const { sub, email, given_name, family_name, picture } = decodedData;
+          
+          // Prepare user data to send to backend
+          const googleUser = {
+            googleId: sub,
+            email: email,
+            firstName: given_name || 'Google',
+            lastName: family_name || 'User',
+            profilePicture: picture || 'https://via.placeholder.com/150'
+          };
+          
+          console.log('Sending data to backend:', googleUser);
+          
+          // Send Google auth data to backend
+          const response = await fetch('http://localhost:5000/api/auth/google', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(googleUser),
+            credentials: 'include' // Include cookies if needed
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok) {
+            // Check for specific error messages
+            if (data.message && data.message.includes('already registered with a password')) {
+              // Show a more helpful error message with a link to sign in
+              this.errorMessage = data.message;
+              
+              // Add a link to switch to sign in
+              setTimeout(() => {
+                const signInLink = document.createElement('a');
+                signInLink.href = '#';
+                signInLink.textContent = 'Sign in here';
+                signInLink.onclick = (e) => {
+                  e.preventDefault();
+                  this.switchToSignIn();
+                };
+                
+                const errorElement = document.querySelector('.error-message');
+                if (errorElement) {
+                  errorElement.innerHTML += '<br>';
+                  errorElement.appendChild(signInLink);
+                }
+              }, 100);
+              
+              return;
+            }
+            
+            throw new Error(data.message || 'Google authentication failed');
+          }
+          
+          // Check if this was a login or registration
+          const isNewUser = data.message === 'Google registration successful';
+          
+          // Store user data and token
+          localStorage.setItem('pathfinder_token', data.token);
+          localStorage.setItem('pathfinder_user', JSON.stringify(data.user));
+          
+          // Show success message
+          this.successMessage = isNewUser 
+            ? 'Account created successfully! Redirecting...' 
+            : 'Google authentication successful! Redirecting...';
+          
+          // Close modal and redirect after a short delay
+          setTimeout(() => {
+            this.closeModal();
+            
+            // Navigate based on role
+            if (data.user.role) {
+              if (data.user.role === 'student') {
+                this.$router.push('/student');
+              } else if (data.user.role === 'teacher') {
+                this.$router.push('/teacher-dashboard');
+              } else {
+                this.$router.push('/dashboard');
+              }
+            } else {
+              // If user doesn't have a role yet
+              this.$router.push('/choose-role');
+            }
+          }, 1500);
+        } catch (decodeError) {
+          console.error('Error decoding token:', decodeError);
+          throw new Error('Unable to process Google authentication response');
+        }
         
       } catch (error) {
         this.errorMessage = error.message || 'An error occurred during Google authentication';
@@ -437,42 +658,19 @@ export default {
       }
     },
     
-    handleGlobalGoogleCallback(event) {
-      if (this.isOpen && event.detail && event.detail.response) {
-        this.handleGoogleCallback(event.detail.response);
-      }
-    },
-    
     checkAndRenderGoogleButton() {
-      console.log('Checking and rendering Google button for signup...');
+      // Check if Google API is loaded and render the button
+      console.log('Checking Google API availability for button rendering');
       
-      // Check if Google API is already loaded
       if (window.google && window.google.accounts) {
-        console.log('Google API is loaded, rendering button for signup');
+        console.log('Google API already loaded, rendering button');
         this.googleScriptLoaded = true;
         this.renderGoogleButton();
       } else {
-        console.log('Google API not loaded yet, trying to load it for signup');
-        // If not loaded, try loading it
+        console.log('Google API not loaded yet, loading script');
         this.loadGoogleAPI();
-        
-        // Set a fallback timer to check again in case the API loads later
-        setTimeout(() => {
-          if (window.google && window.google.accounts) {
-            console.log('Google API loaded after delay, rendering button for signup');
-            this.googleScriptLoaded = true;
-            this.renderGoogleButton();
-          } else {
-            console.warn('Google API still not available after delay for signup');
-            const buttonElement = document.getElementById('google-signup-button');
-            if (buttonElement) {
-              buttonElement.innerHTML = '<div class="fallback-google-button">Continue with Google</div>';
-              buttonElement.onclick = () => window.open('https://accounts.google.com', '_blank');
-            }
-          }
-        }, 2000);
       }
-    }
+    },
   }
 }
 </script>
@@ -938,11 +1136,9 @@ select.form-input {
 .google-signin-container {
   width: 100%;
   min-height: 40px;
-  margin-bottom: var(--dl-layout-space-unit);
+  margin-bottom: 16px;
   display: flex;
   justify-content: center;
-  align-items: center;
-  position: relative;
 }
 
 /* Override any default Google button styles */
@@ -954,51 +1150,46 @@ select.form-input {
 }
 
 .google-error {
-  width: 100%;
-  color: #757575;
-  font-size: 14px;
+  color: #d32f2f;
   text-align: center;
-  margin: 0;
+  font-size: 14px;
+  margin: 8px 0;
 }
 
 /* Error and success messages */
 .error-message {
-  background-color: rgba(255, 87, 87, 0.1);
-  color: #ff5757;
+  background-color: #ffebee;
+  color: #c62828;
   padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 15px;
+  border-radius: 4px;
+  margin-bottom: 16px;
   font-size: 14px;
-  border-left: 4px solid #ff5757;
+  text-align: center;
 }
 
 .success-message {
-  background-color: rgba(75, 181, 67, 0.1);
-  color: #4bb543;
+  background-color: #e8f5e9;
+  color: #2e7d32;
   padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 15px;
+  border-radius: 4px;
+  margin-bottom: 16px;
   font-size: 14px;
-  border-left: 4px solid #4bb543;
+  text-align: center;
 }
 
 /* Loading spinner */
 .loader {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #ffffff;
-  border-bottom-color: transparent;
-  border-radius: 50%;
   display: inline-block;
-  box-sizing: border-box;
-  animation: rotation 1s linear infinite;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
 }
 
-@keyframes rotation {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
+@keyframes spin {
+  to {
     transform: rotate(360deg);
   }
 }
@@ -1040,11 +1231,9 @@ button:disabled {
 .google-signin-container {
   width: 100%;
   min-height: 40px;
-  margin-bottom: var(--dl-layout-space-unit);
+  margin-bottom: 16px;
   display: flex;
   justify-content: center;
-  align-items: center;
-  position: relative;
 }
 
 /* Override any default Google button styles */
@@ -1056,11 +1245,10 @@ button:disabled {
 }
 
 .google-error {
-  width: 100%;
-  color: #757575;
-  font-size: 14px;
+  color: #d32f2f;
   text-align: center;
-  margin: 0;
+  font-size: 14px;
+  margin: 8px 0;
 }
 
 .fallback-google-button {
@@ -1068,37 +1256,25 @@ button:disabled {
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 40px;
+  padding: 10px 16px;
   background-color: white;
+  color: #757575;
   border: 1px solid #dadce0;
   border-radius: 4px;
-  padding: 0 12px;
-  color: #3c4043;
   font-family: 'Roboto', sans-serif;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  position: relative;
-}
-
-.fallback-google-button::before {
-  content: '';
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48cGF0aCBkPSJNMTcuNiA5LjJsLS4xLTEuOEg5djMuNGg0LjhDMTMuNiAxMiAxMyAxMyAxMiAxMy42djIuMmgzYTguOCA4LjggMCAwIDAgMi42LTYuNnoiIGZpbGw9IiM0Mjg1RjQiIGZpbGwtcnVsZT0ibm9uemVybyIvPjxwYXRoIGQ9Ik05IDE4YzIuNCAwIDQuNS0uOCA2LTIuMmwtMy0yLjJhNS40IDUuNCAwIDAgMS04LTIuOUgxVjEzYTkgOSAwIDAgMCA4IDV6IiBmaWxsPSIjMzRBODUzIiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNNCAxMC43YTUuNCA1LjQgMCAwIDEgMC0zLjRWNUgxYTkgOSAwIDAgMCAwIDhsMy0yLjN6IiBmaWxsPSIjRkJCQzA1IiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNOSAzLjZjMS4zIDAgMi41LjQgMy40IDEuM0wxNSAyLjNBOSA5IDAgMCAwIDEgNWwzIDIuNGE1LjQgNS40IDAgMCAxIDUtMy43eiIgZmlsbD0iI0VBNDMzNSIgZmlsbC1ydWxlPSJub256ZXJvIi8+PHBhdGggZD0iTTAgMGgxOHYxOEgweiIvPjwvZz48L3N2Zz4=');
-  width: 18px;
-  height: 18px;
-  margin-right: 8px;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 18px 18px;
+  transition: background-color 0.3s;
+  gap: 8px;
+  height: 40px;
 }
 
 .fallback-google-button:hover {
-  background-color: #f8f9fa;
-  border-color: #dadce0;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
+  background-color: #f5f5f5;
 }
 
-.fallback-google-button:active {
-  background-color: #f1f3f4;
+.fallback-google-button img {
+  margin-right: 8px;
 }
 </style> 

@@ -25,15 +25,15 @@ class User {
         password: newUser.password,
         options: {
           data: {
-            first_name: newUser.firstName,
-            last_name: newUser.lastName
+          first_name: newUser.firstName,
+          last_name: newUser.lastName
           },
           emailRedirectTo: process.env.SITE_URL || 'http://localhost:5001/auth/callback'
         }
       });
 
       if (authError) throw authError;
-      
+
       console.log('Auth user created:', authUser.user);
       console.log('Creating profile with email:', authUser.user.email);
       
@@ -42,11 +42,11 @@ class User {
       
       // Create a profile object to inspect before insertion
       const profileData = {
-        id: authUser.user.id,
-        first_name: newUser.firstName,
-        last_name: newUser.lastName,
+          id: authUser.user.id,
+          first_name: newUser.firstName,
+          last_name: newUser.lastName,
         email: authUser.user.email,
-        profile_picture: newUser.profilePicture,
+          profile_picture: newUser.profilePicture,
         is_verified: newUser.isVerified
       };
       
@@ -65,7 +65,7 @@ class User {
           const { error: profileError } = await supabase
             .from('profiles')
             .insert(profileData);
-          
+
           if (profileError) {
             console.error('Error inserting profile:', profileError);
             throw profileError;

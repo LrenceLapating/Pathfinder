@@ -4,9 +4,14 @@ import Meta from 'vue-meta'
 import Home from './views/home.vue'
 import './style.css'
 import { authMutations } from './store/auth'
+import ResetPassword from './components/ResetPassword.vue'
+import PasswordResetRedirect from './components/PasswordResetRedirect.vue'
 
 Vue.use(Router)
 Vue.use(Meta)
+
+// Check if we're running on port 8080 (which needs redirection)
+const isPort8080 = window.location.port === '8080';
 
 const router = new Router({
   mode: 'history',
@@ -15,6 +20,16 @@ const router = new Router({
       path: '/',
       name: 'home',
       component: Home
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      // If we're on port 8080, use the redirect component, otherwise use the actual reset component
+      component: isPort8080 ? PasswordResetRedirect : ResetPassword,
+      props: (route) => ({ 
+        // Pass any query params as props
+        ...route.query
+      })
     },
     {
       path: '/choose-role',
@@ -191,6 +206,10 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!isAuthenticated) {
+      authMutations.openSignInModal()
+      next('/')
+    } else if (userData.isVerified === false) {
+      // If user is not verified, redirect to home and show sign in modal
       authMutations.openSignInModal()
       next('/')
     } else if (userData.role) {

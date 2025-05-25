@@ -1,25 +1,39 @@
 <template>
   <div>
     <router-view/>
-    <SignIn />
+    <SignIn ref="signIn" />
     <SignUp />
+    <ForgotPassword />
+    
+    <!-- Email Verification Success Toast -->
+    <div v-if="showVerificationSuccess" class="verification-success-toast">
+      <div class="toast-content">
+        <span class="success-icon">✓</span>
+        <span>Email verified successfully! You can now sign in.</span>
+        <button class="close-toast" @click="showVerificationSuccess = false">×</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import SignIn from './components/SignIn.vue'
 import SignUp from './components/SignUp.vue'
+import ForgotPassword from './components/ForgotPassword.vue'
 import { googleOAuthConfig } from './config/oauth'
+import { authMutations } from './store/auth'
 
 export default {
   name: 'App',
   components: {
     SignIn,
-    SignUp
+    SignUp,
+    ForgotPassword
   },
   data() {
     return {
-      googleScriptLoaded: false
+      googleScriptLoaded: false,
+      showVerificationSuccess: false
     }
   },
   created() {
@@ -30,6 +44,34 @@ export default {
     // Check if Google API is already loaded but not initialized
     if (window.google && window.google.accounts && !this.googleScriptLoaded) {
       this.initializeGoogleAPI();
+    }
+    
+    // Check for email verification success in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const verified = urlParams.get('verified');
+    
+    if (verified === 'true') {
+      // Show verification success toast
+      this.showVerificationSuccess = true;
+      
+      // Open sign in modal
+      setTimeout(() => {
+        authMutations.openSignInModal();
+        
+        // Add success message to sign in component
+        if (this.$refs.signIn) {
+          this.$refs.signIn.successMessage = 'Email verified successfully! You can now sign in.';
+        }
+        
+        // Remove the query parameter from URL without reloading
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      }, 500);
+      
+      // Auto-hide toast after 5 seconds
+      setTimeout(() => {
+        this.showVerificationSuccess = false;
+      }, 5000);
     }
   },
   methods: {
@@ -180,5 +222,59 @@ body, html {
   margin: 0;
   padding: 0;
   font-family: 'Noto Sans', sans-serif;
+}
+
+/* Verification Success Toast */
+.verification-success-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  animation: slideIn 0.5s ease-out;
+}
+
+.toast-content {
+  background-color: #10b981; /* Green color */
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.success-icon {
+  font-size: 18px;
+  font-weight: bold;
+  background-color: white;
+  color: #10b981;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-toast {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: 10px;
+  padding: 0;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 </style>

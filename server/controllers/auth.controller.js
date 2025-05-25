@@ -58,7 +58,8 @@ exports.signup = async (req, res) => {
       firstName,
       lastName,
       email,
-      password
+      password,
+      isVerified: false // Set verification status to false by default
     });
 
     // Save user to database
@@ -67,18 +68,20 @@ exports.signup = async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
-    // Return success response
+    // Return success response with verification status
     return res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'User registered successfully. Please check your email to verify your account.',
       token,
       user: {
         id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        role: user.role
-      }
+        role: user.role,
+        isVerified: false // Include verification status in response
+      },
+      requiresVerification: true // Flag to indicate verification is required
     });
   } catch (error) {
     console.error('Error in signup:', error);
@@ -141,6 +144,9 @@ exports.signin = async (req, res) => {
       });
     }
 
+    // Check if email is verified
+    const isVerified = authData.user.email_confirmed_at !== null || profile.is_verified;
+
     // Generate token
     const token = generateToken(profile.id);
 
@@ -154,7 +160,8 @@ exports.signin = async (req, res) => {
         firstName: profile.first_name,
         lastName: profile.last_name,
         email: profile.email,
-        role: profile.role
+        role: profile.role,
+        isVerified: isVerified
       }
     });
   } catch (error) {
@@ -332,6 +339,246 @@ exports.updateProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'An error occurred while updating profile',
+      error: error.message
+    });
+  }
+};
+
+// Email verification
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required'
+      });
+    }
+    
+    // Verify the token with Supabase
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: token,
+      type: 'email'
+    });
+    
+    if (error) {
+      console.error('Email verification error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification token'
+      });
+    }
+    
+    // Update the user's verification status in the profiles table
+    if (data && data.user) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ is_verified: true })
+        .eq('id', data.user.id);
+      
+      if (updateError) {
+        console.error('Error updating verification status:', updateError);
+      }
+    }
+    
+    // Redirect to the frontend with a success message
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:8080'}?verified=true`);
+    
+  } catch (error) {
+    console.error('Error in verifyEmail:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred during email verification',
+      error: error.message
+    });
+  }
+};
+
+// Resend verification email
+exports.resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    // Check if user exists
+    const user = await User.findByEmail(email);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if user is already verified
+    if (user.is_verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified'
+      });
+    }
+    
+    // Resend verification email through Supabase
+    // Using standard auth API instead of admin API which may not be available in all plans
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: process.env.SITE_URL || 'http://localhost:8080?verified=true'
+      }
+    });
+    
+    if (resendError) {
+      console.error('Error resending verification email:', resendError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to resend verification email: ' + resendError.message
+      });
+    }
+    
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      message: 'Verification email resent successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error in resendVerification:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while resending verification email',
+      error: error.message
+    });
+  }
+};
+
+// Forgot password - send reset email
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    // Check if user exists
+    const user = await User.findByEmail(email);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address'
+      });
+    }
+    
+    // Use the correct frontend URL with port 5001
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5001';
+    
+    // Send password reset email through Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${frontendUrl}/reset-password`
+    });
+    
+    if (error) {
+      console.error('Error sending password reset email:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send password reset email: ' + error.message
+      });
+    }
+    
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset instructions sent to your email'
+    });
+    
+  } catch (error) {
+    console.error('Error in forgotPassword:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while processing your request',
+      error: error.message
+    });
+  }
+};
+
+// Reset password with token
+exports.resetPassword = async (req, res) => {
+  try {
+    const { password, refresh_token } = req.body;
+    
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.split(' ')[1] || null;
+    
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required'
+      });
+    }
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authentication token is required'
+      });
+    }
+    
+    // Validate password strength
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+    
+    console.log('Attempting to reset password with Supabase');
+    
+    // Update password through Supabase
+    const { data, error } = await supabase.auth.updateUser({
+      password: password
+    }, {
+      // Pass the access token for authentication
+      auth: {
+        persistSession: false,
+        access_token: token,
+        refresh_token: refresh_token
+      }
+    });
+    
+    if (error) {
+      console.error('Error resetting password:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to reset password: ' + error.message
+      });
+    }
+    
+    console.log('Password reset successful:', data ? 'User data received' : 'No user data');
+    
+    // Return success response
+    return res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error in resetPassword:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while resetting your password',
       error: error.message
     });
   }

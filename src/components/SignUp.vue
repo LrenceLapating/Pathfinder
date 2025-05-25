@@ -20,7 +20,38 @@
             {{ successMessage }}
           </div>
           
-          <form @submit.prevent="handleSignUp">
+          <!-- Email Verification Popup -->
+          <div v-if="showVerificationPopup" class="verification-popup">
+            <div class="verification-content">
+              <div class="verification-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </div>
+              <h3>Verify Your Email</h3>
+              <p>We've sent a verification link to <strong>{{ email }}</strong></p>
+              <p>Please check your inbox and verify your email before signing in.</p>
+              
+              <div class="verification-actions">
+                <button @click="switchToSignIn" class="verify-button">
+                  Go to Sign In
+                </button>
+                
+                <div class="resend-section">
+                  <button 
+                    @click="resendVerificationEmail" 
+                    class="resend-button" 
+                    :disabled="resendCooldown > 0"
+                  >
+                    {{ resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Email' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <form @submit.prevent="handleSignUp" v-if="!showVerificationPopup">
             <div class="form-row">
               <div class="form-group">
                 <input 
@@ -156,7 +187,9 @@ export default {
       errorMessage: '',
       successMessage: '',
       googleAuth: null,
-      googleScriptLoaded: false
+      googleScriptLoaded: false,
+      showVerificationPopup: false,
+      resendCooldown: 0
     }
   },
   computed: {
@@ -188,6 +221,11 @@ export default {
     // Clean up event listeners
     window.removeEventListener('google-api-loaded', this.handleGoogleApiLoaded);
     window.removeEventListener('google-auth-response', this.handleGlobalGoogleCallback);
+    
+    // Clear the countdown interval if it exists
+    if (this.countdownIntervalId) {
+      clearInterval(this.countdownIntervalId);
+    }
   },
   methods: {
     async handleSignUp() {
@@ -259,44 +297,52 @@ export default {
         localStorage.setItem('pathfinder_token', data.token);
         localStorage.setItem('pathfinder_user', JSON.stringify(data.user));
         
-        // Show success message
-        this.successMessage = 'Registration successful! Redirecting...';
-        
-        // Close modal and redirect after a short delay
-        setTimeout(async () => {
-          this.closeModal();
+        // Check if email verification is required
+        if (data.requiresVerification) {
+          // Show verification popup instead of redirecting
+          this.showVerificationPopup = true;
+          // Start the resend cooldown timer
+          this.startResendCooldown();
+        } else {
+          // Show success message
+          this.successMessage = 'Registration successful! Redirecting...';
           
-          // Navigate based on role
-          if (data.user.role) {
-            const targetRoute = data.user.role === 'student' 
-              ? '/student'
-              : data.user.role === 'teacher'
-                ? '/teacher/analytics'
-                : '/dashboard';
-                
-            // Only navigate if we're not already on the target route
-            if (this.$route.path !== targetRoute) {
-              try {
-                await this.$router.push(targetRoute);
-              } catch (err) {
-                if (err.name !== 'NavigationDuplicated') {
-                  throw err;
+          // Close modal and redirect after a short delay
+          setTimeout(async () => {
+            this.closeModal();
+            
+            // Navigate based on role
+            if (data.user.role) {
+              const targetRoute = data.user.role === 'student' 
+                ? '/student'
+                : data.user.role === 'teacher'
+                  ? '/teacher/analytics'
+                  : '/dashboard';
+                  
+              // Only navigate if we're not already on the target route
+              if (this.$route.path !== targetRoute) {
+                try {
+                  await this.$router.push(targetRoute);
+                } catch (err) {
+                  if (err.name !== 'NavigationDuplicated') {
+                    throw err;
+                  }
+                }
+              }
+            } else {
+              // If user doesn't have a role yet
+              if (this.$route.path !== '/choose-role') {
+                try {
+                  await this.$router.push('/choose-role');
+                } catch (err) {
+                  if (err.name !== 'NavigationDuplicated') {
+                    throw err;
+                  }
                 }
               }
             }
-          } else {
-            // If user doesn't have a role yet
-            if (this.$route.path !== '/choose-role') {
-              try {
-                await this.$router.push('/choose-role');
-              } catch (err) {
-                if (err.name !== 'NavigationDuplicated') {
-                  throw err;
-                }
-              }
-            }
-          }
-        }, 1500);
+          }, 1500);
+        }
         
       } catch (error) {
         this.errorMessage = error.message || 'An error occurred during registration';
@@ -304,6 +350,98 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    async resendVerificationEmail() {
+      try {
+        // Show loading state
+        this.loading = true;
+        
+        // Make API call to resend verification email
+        const response = await fetch('http://localhost:5000/api/auth/resend-verification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: this.email
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to resend verification email');
+        }
+        
+        // Start the cooldown timer
+        this.startResendCooldown();
+        
+        // Show success message inside the popup
+        const verificationContent = document.querySelector('.verification-content');
+        if (verificationContent) {
+          const successMsg = document.createElement('div');
+          successMsg.className = 'resend-success';
+          successMsg.textContent = 'Verification email sent!';
+          
+          // Insert after the paragraph
+          const paragraphs = verificationContent.querySelectorAll('p');
+          if (paragraphs.length > 0) {
+            const lastParagraph = paragraphs[paragraphs.length - 1];
+            lastParagraph.parentNode.insertBefore(successMsg, lastParagraph.nextSibling);
+            
+            // Remove the message after 3 seconds
+            setTimeout(() => {
+              if (successMsg.parentNode) {
+                successMsg.parentNode.removeChild(successMsg);
+              }
+            }, 3000);
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error resending verification email:', error);
+        
+        // Show error message inside the popup
+        const verificationContent = document.querySelector('.verification-content');
+        if (verificationContent) {
+          const errorMsg = document.createElement('div');
+          errorMsg.className = 'resend-error';
+          errorMsg.textContent = error.message || 'Failed to resend. Please try again.';
+          
+          // Insert after the paragraph
+          const paragraphs = verificationContent.querySelectorAll('p');
+          if (paragraphs.length > 0) {
+            const lastParagraph = paragraphs[paragraphs.length - 1];
+            lastParagraph.parentNode.insertBefore(errorMsg, lastParagraph.nextSibling);
+            
+            // Remove the message after 3 seconds
+            setTimeout(() => {
+              if (errorMsg.parentNode) {
+                errorMsg.parentNode.removeChild(errorMsg);
+              }
+            }, 3000);
+          }
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    startResendCooldown() {
+      this.resendCooldown = 60; // Set to 60 seconds
+      
+      // Create interval to count down
+      const countdownInterval = setInterval(() => {
+        this.resendCooldown--;
+        
+        if (this.resendCooldown <= 0) {
+          clearInterval(countdownInterval);
+        }
+      }, 1000);
+      
+      // Store the interval ID so we can clear it if needed
+      this.countdownIntervalId = countdownInterval;
     },
     
     loadGoogleAPI() {
@@ -716,7 +854,7 @@ export default {
         console.log('Google API not loaded yet, loading script');
         this.loadGoogleAPI();
       }
-    },
+    }
   }
 }
 </script>
@@ -1322,5 +1460,159 @@ button:disabled {
 
 .fallback-google-button img {
   margin-right: 8px;
+}
+
+/* Email Verification Popup Styles */
+.verification-popup {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.verification-content {
+  text-align: center;
+  padding: 30px;
+  max-width: 90%;
+  width: 380px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(74, 108, 247, 0.2);
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.verification-icon {
+  margin: 0 auto 20px;
+  width: 70px;
+  height: 70px;
+  background-color: rgba(74, 108, 247, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4a6cf7;
+}
+
+.verification-content h3 {
+  font-size: 22px;
+  color: #333;
+  margin-bottom: 15px;
+  font-family: 'STIX Two Text', serif;
+}
+
+.verification-content p {
+  color: #666;
+  margin-bottom: 10px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.verification-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.verify-button {
+  background-color: #4a6cf7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.verify-button:hover {
+  background-color: #3a5ce5;
+  transform: translateY(-2px);
+}
+
+.resend-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.resend-button {
+  background-color: transparent;
+  color: #4a6cf7;
+  border: 1px solid #4a6cf7;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.resend-button:hover:not(:disabled) {
+  background-color: rgba(74, 108, 247, 0.1);
+}
+
+.resend-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: #ccc;
+  color: #888;
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.resend-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin: 10px 0;
+  animation: fadeIn 0.3s ease-out forwards;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.resend-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin: 10px 0;
+  animation: fadeIn 0.3s ease-out forwards;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style> 

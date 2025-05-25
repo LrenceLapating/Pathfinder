@@ -50,7 +50,7 @@
                 <input type="checkbox" v-model="rememberMe" :disabled="loading">
                 <span>Remember me</span>
               </label>
-              <a href="#" class="forgot-password">Forgot Password?</a>
+              <a href="#" class="forgot-password" @click.prevent="openForgotPassword">Forgot Password?</a>
             </div>
             
             <button type="submit" class="signin-button" :disabled="loading">
@@ -181,6 +181,12 @@ export default {
           throw new Error(data.message || 'Login failed');
         }
         
+        // Check if email is verified
+        if (data.user && data.user.isVerified === false) {
+          this.errorMessage = 'Please verify your email before signing in. Check your inbox for the verification link.';
+          return;
+        }
+        
         // Store user data and token
         localStorage.setItem('pathfinder_token', data.token);
         localStorage.setItem('pathfinder_user', JSON.stringify(data.user));
@@ -189,52 +195,43 @@ export default {
           localStorage.setItem('rememberMe', 'true');
         }
         
-        if (data.user.role) {
-          // Store user role
-          localStorage.setItem('pathfinder_user_role', data.user.role);
+        // Show success message
+        this.successMessage = 'Login successful! Redirecting...';
+        
+        // Close modal and redirect after a short delay
+        setTimeout(async () => {
+          this.closeModal();
           
-          // Show success message
-          this.successMessage = 'Login successful! Redirecting...';
-          
-          // Close modal and redirect after a short delay
-          setTimeout(async () => {
-            this.closeModal();
-            
-            // Navigate based on role
-            const targetRoute = data.user.role === 'student' 
-              ? '/student'
-              : data.user.role === 'teacher'
-                ? '/teacher/analytics'
-                : '/dashboard';
-                
-            // Only navigate if we're not already on the target route
-            if (this.$route.path !== targetRoute) {
-              try {
-                await this.$router.push(targetRoute);
-              } catch (err) {
-                if (err.name !== 'NavigationDuplicated') {
-                  throw err;
-                }
+          // If user doesn't have a role yet, redirect to choose-role
+          if (!data.user.role) {
+            try {
+              await this.$router.push('/choose-role');
+            } catch (err) {
+              if (err.name !== 'NavigationDuplicated') {
+                throw err;
               }
             }
-          }, 1500);
-        } else {
-          // If user doesn't have a role yet
-          this.successMessage = 'Login successful! Redirecting to complete your profile...';
+            return;
+          }
           
-          setTimeout(async () => {
-            this.closeModal();
-            if (this.$route.path !== '/choose-role') {
-              try {
-                await this.$router.push('/choose-role');
-              } catch (err) {
-                if (err.name !== 'NavigationDuplicated') {
-                  throw err;
-                }
+          // Navigate based on role
+          const targetRoute = data.user.role === 'student' 
+            ? '/student'
+            : data.user.role === 'teacher'
+              ? '/teacher'
+              : '/dashboard';
+              
+          // Only navigate if we're not already on the target route
+          if (this.$route.path !== targetRoute) {
+            try {
+              await this.$router.push(targetRoute);
+            } catch (err) {
+              if (err.name !== 'NavigationDuplicated') {
+                throw err;
               }
             }
-          }, 1500);
-        }
+          }
+        }, 1500);
         
       } catch (error) {
         this.errorMessage = error.message || 'An error occurred during login';
@@ -619,6 +616,16 @@ export default {
         console.error('Error triggering manual Google sign-in:', error);
         this.errorMessage = 'Failed to start Google authentication. Please try again.';
       }
+    },
+    
+    openForgotPassword() {
+      // First start exit animation
+      document.querySelector('.signin-card').classList.add('animate-slide-out');
+      
+      // Then switch forms after animation completes
+      setTimeout(() => {
+        authMutations.openForgotPasswordModal()
+      }, 300);
     }
   }
 }

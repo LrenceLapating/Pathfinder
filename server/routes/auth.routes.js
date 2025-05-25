@@ -14,4 +14,16 @@ router.post('/google', authController.googleAuth);
 // Update user profile with role
 router.post('/profile', authController.updateProfile);
 
+// Email verification route
+router.get('/verify-email', authController.verifyEmail);
+
+// Resend verification email
+router.post('/resend-verification', authController.resendVerification);
+
+// Forgot password - request password reset
+router.post('/forgot-password', authController.forgotPassword);
+
+// Reset password with token
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router; 

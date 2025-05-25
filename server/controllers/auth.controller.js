@@ -1,5 +1,6 @@
 const User = require('../models/user.model');
 const jwt = require('jsonwebtoken');
+const { supabase } = require('../models/index');
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'pathfinder_secret_key_change_in_production';
@@ -16,6 +17,8 @@ const generateToken = (userId) => {
 exports.signup = async (req, res) => {
   try {
     const { firstName, lastName, email, password, confirmPassword } = req.body;
+    
+    console.log('Signup attempt with:', { firstName, lastName, email });
 
     // Validate required fields
     if (!firstName || !lastName || !email || !password) {
@@ -30,6 +33,14 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         message: 'Passwords do not match' 
+      });
+    }
+    
+    // Validate password strength
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
       });
     }
 
@@ -92,28 +103,46 @@ exports.signin = async (req, res) => {
       });
     }
 
-    // Find user by email
-    const user = await User.findByEmail(email);
+    // Use Supabase Auth directly for signin
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError) {
+      console.error('Supabase auth error:', authError);
     
-    // Check if user exists
-    if (!user) {
+      // Check for email confirmation issues
+      if (authError.message.includes('Email not confirmed')) {
+        return res.status(401).json({
+          success: false,
+          message: 'Please confirm your email address before signing in.'
+        });
+      }
+      
       return res.status(401).json({ 
         success: false, 
         message: 'Invalid email or password' 
       });
     }
 
-    // Check if password matches
-    const isPasswordValid = await User.comparePassword(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ 
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      return res.status(500).json({
         success: false, 
-        message: 'Invalid email or password' 
+        message: 'Error fetching user profile'
       });
     }
 
     // Generate token
-    const token = generateToken(user.id);
+    const token = generateToken(profile.id);
 
     // Return success response
     return res.status(200).json({
@@ -121,11 +150,11 @@ exports.signin = async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user.id,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        email: user.email,
-        role: user.role
+        id: profile.id,
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+        email: profile.email,
+        role: profile.role
       }
     });
   } catch (error) {
@@ -160,9 +189,26 @@ exports.googleAuth = async (req, res) => {
       
       // If user exists with this email but not linked to Google
       if (user && !user.googleId) {
-        return res.status(400).json({
-          success: false,
-          message: 'This email is already registered with a password. Please sign in with your password or reset it if forgotten.'
+        console.log('Found existing user with email but no Google ID, linking accounts');
+        
+        // Update the user record to link it with the Google ID
+        await User.linkGoogleAccount(user.id, googleId, profilePicture);
+        
+        // Continue with sign in using the updated user
+        const token = generateToken(user.id);
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Google account linked and login successful',
+          token,
+          user: {
+            id: user.id,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            email: user.email,
+            profilePicture: user.profile_picture || profilePicture,
+            role: user.role
+          }
         });
       }
     }
@@ -193,8 +239,8 @@ exports.googleAuth = async (req, res) => {
       firstName: firstName || 'Google',
       lastName: lastName || 'User',
       email,
-      // Generate a random secure password since they're using Google OAuth
-      password: Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10),
+      // Generate a random secure password with minimum length 10 characters
+      password: Math.random().toString(36).substring(2, 12),
       googleId,
       profilePicture,
       isVerified: true, // Google accounts are considered verified

@@ -6,7 +6,7 @@ const path = require('path');
 const db = require('./models');
 
 // Load environment variables
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Initialize Express app
 const app = express();
@@ -15,7 +15,7 @@ const app = express();
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? 'https://yourproductiondomain.com' 
-    : 'http://localhost:8080',
+    : ['http://localhost:8080', 'http://localhost:5001'],
   credentials: true
 }));
 app.use(bodyParser.json());

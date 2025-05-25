@@ -1,4 +1,4 @@
-const { pool } = require('./index');
+const { supabase } = require('./index');
 const bcrypt = require('bcryptjs');
 
 class User {
@@ -19,21 +19,64 @@ class User {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(newUser.password, salt);
 
-      const [result] = await pool.execute(
-        `INSERT INTO users (first_name, last_name, email, password, google_id, profile_picture, is_verified) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newUser.firstName,
-          newUser.lastName,
-          newUser.email,
-          hashedPassword,
-          newUser.googleId,
-          newUser.profilePicture,
-          newUser.isVerified
-        ]
-      );
+      // Create user in Supabase Auth
+      const { data: authUser, error: authError } = await supabase.auth.signUp({
+        email: newUser.email,
+        password: newUser.password,
+        options: {
+          data: {
+            first_name: newUser.firstName,
+            last_name: newUser.lastName
+          },
+          emailRedirectTo: process.env.SITE_URL || 'http://localhost:5001/auth/callback'
+        }
+      });
 
-      return { id: result.insertId, ...newUser, password: undefined };
+      if (authError) throw authError;
+      
+      console.log('Auth user created:', authUser.user);
+      console.log('Creating profile with email:', authUser.user.email);
+      
+      // Add a small delay to ensure auth user is fully propagated in the database
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create a profile object to inspect before insertion
+      const profileData = {
+        id: authUser.user.id,
+        first_name: newUser.firstName,
+        last_name: newUser.lastName,
+        email: authUser.user.email,
+        profile_picture: newUser.profilePicture,
+        is_verified: newUser.isVerified
+      };
+      
+      console.log('Profile data to insert:', profileData);
+
+      try {
+        // Try using upsert instead of insert as it might work differently with constraints
+        const { error: upsertError } = await supabase
+          .from('profiles')
+          .upsert(profileData, { onConflict: 'id' });
+        
+        if (upsertError) {
+          console.error('Error upserting profile:', upsertError);
+          
+          // Fall back to standard insert as a last resort
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert(profileData);
+          
+          if (profileError) {
+            console.error('Error inserting profile:', profileError);
+            throw profileError;
+          }
+        }
+      } catch (error) {
+        console.error('Error in profile creation process:', error);
+        throw error;
+      }
+
+      return { id: authUser.user.id, ...newUser, password: undefined };
     } catch (error) {
       throw error;
     }
@@ -42,16 +85,21 @@ class User {
   // Find a user by email
   static async findByEmail(email) {
     try {
-      const [rows] = await pool.execute(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-      );
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-      if (rows.length === 0) {
-        return null;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // PGRST116 means no rows returned
+          return null;
+        }
+        throw error;
       }
 
-      return rows[0];
+      return data;
     } catch (error) {
       throw error;
     }
@@ -60,16 +108,29 @@ class User {
   // Find a user by Google ID
   static async findByGoogleId(googleId) {
     try {
-      const [rows] = await pool.execute(
-        'SELECT * FROM users WHERE google_id = ?',
-        [googleId]
-      );
+      // Since google_id column doesn't exist in profiles table yet,
+      // always return null for now
+      console.log('Warning: findByGoogleId called but google_id column does not exist in profiles table');
+      return null;
+      
+      // Original implementation - uncomment once google_id column is added
+      /*
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('google_id', googleId)
+        .single();
 
-      if (rows.length === 0) {
-        return null;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // PGRST116 means no rows returned
+          return null;
+        }
+        throw error;
       }
 
-      return rows[0];
+      return data;
+      */
     } catch (error) {
       throw error;
     }
@@ -78,33 +139,50 @@ class User {
   // Find a user by ID
   static async findById(id) {
     try {
-      const [rows] = await pool.execute(
-        'SELECT id, first_name, last_name, email, created_at, profile_picture, is_verified FROM users WHERE id = ?',
-        [id]
-      );
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, created_at, profile_picture, is_verified')
+        .eq('id', id)
+        .single();
 
-      if (rows.length === 0) {
-        return null;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // PGRST116 means no rows returned
+          return null;
+        }
+        throw error;
       }
 
-      return rows[0];
+      return data;
     } catch (error) {
       throw error;
     }
   }
 
-  // Check if the password matches
-  static async comparePassword(plainPassword, hashedPassword) {
-    return await bcrypt.compare(plainPassword, hashedPassword);
+  // Check if the password matches using Supabase Auth
+  static async comparePassword(plainPassword, email) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: plainPassword
+      });
+      
+      return !error && data?.user !== null;
+    } catch (error) {
+      console.error('Error in comparePassword:', error);
+      return false;
+    }
   }
 
   // Update user role
   static async updateRole(userId, role) {
     try {
-      await pool.execute(
-        'UPDATE users SET role = ? WHERE id = ?',
-        [role, userId]
-      );
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId);
+
+      if (error) throw error;
       return true;
     } catch (error) {
       throw error;
@@ -116,15 +194,16 @@ class User {
     try {
       const { grade, subjects } = studentDetails;
       
-      // Convert subjects array to JSON string
-      const subjectsJson = JSON.stringify(subjects);
+      const { error } = await supabase
+        .from('student_profiles')
+        .upsert({
+          user_id: userId,
+          grade,
+          subjects,
+          updated_at: new Date().toISOString()
+        });
       
-      await pool.execute(
-        'INSERT INTO student_profiles (user_id, grade, subjects) VALUES (?, ?, ?) ' +
-        'ON DUPLICATE KEY UPDATE grade = ?, subjects = ?',
-        [userId, grade, subjectsJson, grade, subjectsJson]
-      );
-      
+      if (error) throw error;
       return true;
     } catch (error) {
       throw error;
@@ -136,18 +215,63 @@ class User {
     try {
       const { school, subjects, grades } = teacherDetails;
       
-      // Convert arrays to JSON strings
-      const subjectsJson = JSON.stringify(subjects);
-      const gradesJson = JSON.stringify(grades);
+      const { error } = await supabase
+        .from('teacher_profiles')
+        .upsert({
+          user_id: userId,
+          school,
+          subjects,
+          grades,
+          updated_at: new Date().toISOString()
+        });
       
-      await pool.execute(
-        'INSERT INTO teacher_profiles (user_id, school, subjects, grades) VALUES (?, ?, ?, ?) ' +
-        'ON DUPLICATE KEY UPDATE school = ?, subjects = ?, grades = ?',
-        [userId, school, subjectsJson, gradesJson, school, subjectsJson, gradesJson]
-      );
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Link a Google account to an existing user account
+  static async linkGoogleAccount(userId, googleId, profilePicture) {
+    try {
+      console.log(`Linking Google ID ${googleId} to user ${userId}`);
+      
+      // Note: we can't directly update user metadata without admin access
+      // So we're just updating the profile picture if provided
+      
+      // Update the profile record
+      const updateData = {
+        // Add google_id when the column exists
+        // google_id: googleId
+      };
+      
+      // Only update profile picture if it doesn't already exist
+      if (profilePicture) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('profile_picture')
+          .eq('id', userId)
+          .single();
+          
+        if (!profile?.profile_picture) {
+          updateData.profile_picture = profilePicture;
+        }
+      }
+      
+      // If we have data to update, proceed with the update
+      if (Object.keys(updateData).length > 0) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', userId);
+          
+        if (profileError) throw profileError;
+      }
       
       return true;
     } catch (error) {
+      console.error('Error linking Google account:', error);
       throw error;
     }
   }

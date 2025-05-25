@@ -3,6 +3,9 @@ const path = require('path')
 module.exports = {
   devServer: {
     allowedHosts: "all",
+    port: 5001,
+    hot: true,
+    historyApiFallback: true
   },
   css: {
     loaderOptions: {

@@ -203,7 +203,7 @@ export default {
         if (this.selectedRole === 'student') {
           this.$router.push('/student');
         } else if (this.selectedRole === 'teacher') {
-          this.$router.push('/teacher-dashboard');
+          this.$router.push('/teacher/dashboard');
         }
         
       } catch (error) {

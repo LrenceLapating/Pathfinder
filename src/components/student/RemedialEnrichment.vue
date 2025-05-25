@@ -163,7 +163,35 @@ export default {
           title: 'Algebra Fundamentals',
           description: 'Review basic algebraic concepts and equations',
           icon: 'fas fa-square-root-alt',
-          mastery: 65
+          mastery: 65,
+          remedialModules: [
+            {
+              id: 'rm1',
+              title: 'Basic Equations',
+              difficulty: 'beginner',
+              duration: '30 mins',
+              prerequisites: []
+            },
+            {
+              id: 'rm2',
+              title: 'Variable Manipulation',
+              difficulty: 'intermediate',
+              duration: '45 mins',
+              prerequisites: ['rm1']
+            }
+          ],
+          enrichmentModules: [
+            {
+              id: 'em1',
+              title: 'Advanced Problem Solving',
+              difficulty: 'advanced',
+              duration: '60 mins',
+              unlockCriteria: {
+                minMastery: 85,
+                requiredModules: ['rm1', 'rm2']
+              }
+            }
+          ]
         },
         {
           id: 2,
@@ -263,10 +291,171 @@ export default {
           duration: '3 weeks',
           skills: ['Mathematical Modeling', 'Problem Solving', 'Programming']
         }
+      ],
+      enrolledModules: [],
+      completedModules: [],
+      userPerformance: {
+        quizScores: [],
+        moduleCompletions: [],
+        studyTime: 0
+      },
+      autoEnrollmentSettings: {
+        enabled: true,
+        thresholds: {
+          lowPerformance: 65,
+          highPerformance: 90
+        }
+      },
+      challengeModules: [
+        {
+          id: 'ch1',
+          title: 'Mathematical Olympiad Prep',
+          description: 'Advanced problems for competitive mathematics',
+          requirements: {
+            minAvgScore: 90,
+            consecutiveHighScores: 3,
+            completedModules: ['em1']
+          },
+          rewards: {
+            points: 500,
+            badge: 'Math Champion',
+            certificate: true
+          }
+        }
       ]
     }
   },
+  computed: {
+    eligibleForEnrichment() {
+      return this.recommendedAreas.filter(area => area.mastery >= 85)
+    },
+    needsRemedial() {
+      return this.recommendedAreas.filter(area => area.mastery < 65)
+    },
+    availableChallenges() {
+      return this.challengeModules.filter(module => this.checkChallengeEligibility(module))
+    }
+  },
   methods: {
+    async checkPerformance() {
+      try {
+        const performance = await this.$api.student.getPerformance()
+        this.userPerformance = performance
+        this.evaluateAutoEnrollment()
+      } catch (error) {
+        console.error('Error checking performance:', error)
+      }
+    },
+    evaluateAutoEnrollment() {
+      if (!this.autoEnrollmentSettings.enabled) return
+
+      this.recommendedAreas.forEach(area => {
+        if (area.mastery < this.autoEnrollmentSettings.thresholds.lowPerformance) {
+          this.autoEnrollInRemedial(area)
+        } else if (area.mastery > this.autoEnrollmentSettings.thresholds.highPerformance) {
+          this.suggestEnrichment(area)
+        }
+      })
+    },
+    async autoEnrollInRemedial(area) {
+      try {
+        const eligibleModules = area.remedialModules.filter(module => 
+          !this.enrolledModules.includes(module.id) &&
+          !this.completedModules.includes(module.id) &&
+          module.prerequisites.every(prereq => this.completedModules.includes(prereq))
+        )
+
+        if (eligibleModules.length > 0) {
+          const moduleToEnroll = eligibleModules[0]
+          await this.enrollInModule(moduleToEnroll)
+          this.$notify({
+            type: 'info',
+            title: 'Auto-enrolled in Remedial Module',
+            message: `You've been enrolled in ${moduleToEnroll.title} to improve your ${area.title} skills.`
+          })
+        }
+      } catch (error) {
+        console.error('Error in auto-enrollment:', error)
+      }
+    },
+    suggestEnrichment(area) {
+      const eligibleModules = area.enrichmentModules.filter(module => 
+        this.checkEnrichmentEligibility(module, area)
+      )
+
+      eligibleModules.forEach(module => {
+        this.$notify({
+          type: 'success',
+          title: 'New Challenge Available!',
+          message: `You've unlocked ${module.title}! Ready to challenge yourself?`,
+          action: {
+            text: 'Start Now',
+            onClick: () => this.enrollInModule(module)
+          }
+        })
+      })
+    },
+    checkEnrichmentEligibility(module, area) {
+      return area.mastery >= module.unlockCriteria.minMastery &&
+             module.unlockCriteria.requiredModules.every(moduleId => 
+               this.completedModules.includes(moduleId)
+             )
+    },
+    checkChallengeEligibility(challenge) {
+      const recentScores = this.userPerformance.quizScores.slice(-3)
+      
+      return this.userPerformance.quizScores.reduce((sum, score) => sum + score, 0) / 
+             this.userPerformance.quizScores.length >= challenge.requirements.minAvgScore &&
+             recentScores.length >= challenge.requirements.consecutiveHighScores &&
+             recentScores.every(score => score >= challenge.requirements.minAvgScore) &&
+             challenge.requirements.completedModules.every(moduleId =>
+               this.completedModules.includes(moduleId)
+             )
+    },
+    async enrollInModule(module) {
+      try {
+        await this.$api.student.enrollInModule(module.id)
+        this.enrolledModules.push(module.id)
+        this.$emit('module-enrolled', module)
+      } catch (error) {
+        console.error('Error enrolling in module:', error)
+      }
+    },
+    async completeModule(moduleId) {
+      try {
+        await this.$api.student.completeModule(moduleId)
+        this.completedModules.push(moduleId)
+        this.enrolledModules = this.enrolledModules.filter(id => id !== moduleId)
+        this.checkForNewUnlocks()
+      } catch (error) {
+        console.error('Error completing module:', error)
+      }
+    },
+    async checkForNewUnlocks() {
+      this.recommendedAreas.forEach(area => {
+        area.enrichmentModules.forEach(module => {
+          if (this.checkEnrichmentEligibility(module, area)) {
+            this.$notify({
+              type: 'success',
+              title: 'New Content Unlocked!',
+              message: `You've unlocked ${module.title}!`,
+              duration: 5000
+            })
+          }
+        })
+      })
+
+      this.challengeModules.forEach(challenge => {
+        if (this.checkChallengeEligibility(challenge)) {
+          this.$notify({
+            type: 'success',
+            title: 'Challenge Unlocked!',
+            message: `You've unlocked the ${challenge.title} challenge!`,
+            duration: 5000
+          })
+        }
+      })
+    },
     startPractice(area) {
       // Navigate to practice session
       this.$router.push(`/student/practice/${area.id}`)
@@ -282,6 +471,17 @@ export default {
     startProject(project) {
       // Navigate to project page
       this.$router.push(`/student/projects/${project.id}`)
+    }
+  },
+  mounted() {
+    this.checkPerformance()
+  },
+  watch: {
+    userPerformance: {
+      deep: true,
+      handler() {
+        this.checkForNewUnlocks()
+      }
     }
   }
 }

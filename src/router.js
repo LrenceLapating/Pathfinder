@@ -66,6 +66,22 @@ const router = new Router({
           props: true
         },
         {
+          path: 'adaptive-module/:id',
+          name: 'student-adaptive-module',
+          component: () => import('./components/student/AdaptiveModule.vue'),
+          props: true
+        },
+        {
+          path: 'analytics',
+          name: 'student-analytics',
+          component: () => import('./components/student/LearningAnalytics.vue')
+        },
+        {
+          path: 'remedial',
+          name: 'student-remedial',
+          component: () => import('./components/student/RemedialEnrichment.vue')
+        },
+        {
           path: 'resources',
           name: 'student-resources',
           component: () => import('./views/student/ResourceLibrary.vue')
@@ -81,11 +97,6 @@ const router = new Router({
           component: () => import('./components/student/ActivityLog.vue')
         },
         {
-          path: 'remedial',
-          name: 'student-remedial',
-          component: () => import('./components/student/RemedialEnrichment.vue')
-        },
-        {
           path: 'community',
           name: 'student-community',
           component: () => import('./components/student/StudentCommunity.vue')
@@ -93,10 +104,77 @@ const router = new Router({
       ]
     },
     {
-      path: '/teacher-dashboard',
-      name: 'teacher-dashboard',
-      component: () => import('./views/TeacherDashboard.vue'),
-      meta: { requiresAuth: true, role: 'teacher' }
+      path: '/teacher',
+      component: () => import('./views/teacher/TeacherLayout.vue'),
+      meta: { requiresAuth: true, role: 'teacher' },
+      children: [
+        {
+          path: '',
+          name: 'teacher-dashboard',
+          component: () => import('./views/teacher/TeacherDashboard.vue')
+        },
+        {
+          path: 'students',
+          name: 'teacher-students',
+          component: () => import('./views/teacher/StudentRoster.vue')
+        },
+        {
+          path: 'students/:id/performance',
+          name: 'teacher-student-performance',
+          component: () => import('./views/teacher/StudentPerformance.vue'),
+          props: true
+        },
+        {
+          path: 'modules',
+          name: 'teacher-modules',
+          component: () => import('./views/teacher/ModuleManagement.vue')
+        },
+        {
+          path: 'quizzes',
+          name: 'teacher-quizzes',
+          component: () => import('./views/teacher/QuizBuilder.vue')
+        },
+        {
+          path: 'schedule',
+          name: 'teacher-schedule',
+          component: () => import('./views/teacher/SmartSchedulePlanner.vue')
+        },
+        {
+          path: 'analytics',
+          name: 'teacher-analytics',
+          component: () => import('./views/teacher/LearningAnalytics.vue')
+        },
+        {
+          path: 'remedial-tools',
+          name: 'teacher-remedial',
+          component: () => import('./views/teacher/RemedialManager.vue')
+        },
+        {
+          path: 'resources',
+          name: 'teacher-resources',
+          component: () => import('./views/teacher/ResourceManager.vue')
+        },
+        {
+          path: 'messages',
+          name: 'teacher-messages',
+          component: () => import('./views/teacher/TeacherMessages.vue')
+        },
+        {
+          path: 'achievements',
+          name: 'teacher-achievements',
+          component: () => import('./views/teacher/AchievementManager.vue')
+        },
+        {
+          path: 'notifications',
+          name: 'teacher-notifications',
+          component: () => import('./views/teacher/NotificationCenter.vue')
+        },
+        {
+          path: 'profile',
+          name: 'teacher-profile',
+          component: () => import('./views/teacher/TeacherProfile.vue')
+        }
+      ]
     },
     {
       path: '*',
@@ -106,17 +184,26 @@ const router = new Router({
 })
 
 // Navigation Guards
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const isAuthenticated = localStorage.getItem('pathfinder_token')
   const userRole = localStorage.getItem('pathfinder_user_role')
+  const userData = JSON.parse(localStorage.getItem('pathfinder_user') || '{}')
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!isAuthenticated) {
       authMutations.openSignInModal()
       next('/')
-    } else if (to.meta.role && to.meta.role !== userRole) {
-      // If route requires specific role but user doesn't have it
-      next('/dashboard')
+    } else if (userData.role) {
+      // If user already has a role in their profile
+      if (to.path === '/choose-role') {
+        // Redirect to appropriate dashboard based on role
+        next(userData.role === 'student' ? '/student' : '/teacher')
+      } else if (to.meta.role && to.meta.role !== userData.role) {
+        // If route requires specific role but user doesn't have it
+        next(userData.role === 'student' ? '/student' : '/teacher')
+      } else {
+        next()
+      }
     } else if (!userRole && to.path !== '/choose-role') {
       // If user is authenticated but hasn't chosen a role yet
       next('/choose-role')

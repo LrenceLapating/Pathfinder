@@ -250,7 +250,7 @@ export default {
               }
             }, 100);
           } else {
-            throw new Error(data.message || 'Registration failed');
+          throw new Error(data.message || 'Registration failed');
           }
           return;
         }
@@ -263,10 +263,39 @@ export default {
         this.successMessage = 'Registration successful! Redirecting...';
         
         // Close modal and redirect after a short delay
-        setTimeout(() => {
+        setTimeout(async () => {
           this.closeModal();
-          // Redirect to choose-role page instead of dashboard
-          this.$router.push('/choose-role');
+          
+          // Navigate based on role
+          if (data.user.role) {
+            const targetRoute = data.user.role === 'student' 
+              ? '/student'
+              : data.user.role === 'teacher'
+                ? '/teacher/analytics'
+                : '/dashboard';
+                
+            // Only navigate if we're not already on the target route
+            if (this.$route.path !== targetRoute) {
+              try {
+                await this.$router.push(targetRoute);
+              } catch (err) {
+                if (err.name !== 'NavigationDuplicated') {
+                  throw err;
+                }
+              }
+            }
+          } else {
+            // If user doesn't have a role yet
+            if (this.$route.path !== '/choose-role') {
+              try {
+                await this.$router.push('/choose-role');
+              } catch (err) {
+                if (err.name !== 'NavigationDuplicated') {
+                  throw err;
+                }
+              }
+            }
+          }
         }, 1500);
         
       } catch (error) {
@@ -430,7 +459,7 @@ export default {
         } else {
           console.error('Google API not available for manual sign-in');
           this.errorMessage = 'Google Sign-In is not available. Please try again later or use email/password.';
-        }
+          }
       } catch (error) {
         console.error('Error triggering manual Google sign-in:', error);
         this.errorMessage = 'Failed to start Google authentication. Please try again.';
@@ -468,7 +497,7 @@ export default {
           if (window.google && window.google.accounts) {
             console.log('Attempting to prompt Google sign-in again');
             setTimeout(() => {
-              window.google.accounts.id.prompt();
+            window.google.accounts.id.prompt();
             }, 500);
           }
           throw new Error('Empty response from Google authentication. Please try again.');
@@ -516,7 +545,7 @@ export default {
           }
           
           if (!token) {
-            throw new Error('Invalid response format from Google authentication');
+          throw new Error('Invalid response format from Google authentication');
           }
         }
         
@@ -528,44 +557,44 @@ export default {
         console.log('Token successfully extracted');
         
         try {
-          // Decode the ID token
-          const base64Url = token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-          
-          console.log('Token decoded successfully');
-          
-          const decodedData = JSON.parse(jsonPayload);
-          console.log('Decoded payload:', decodedData);
-          
-          const { sub, email, given_name, family_name, picture } = decodedData;
-          
-          // Prepare user data to send to backend
-          const googleUser = {
-            googleId: sub,
-            email: email,
-            firstName: given_name || 'Google',
-            lastName: family_name || 'User',
-            profilePicture: picture || 'https://via.placeholder.com/150'
-          };
-          
-          console.log('Sending data to backend:', googleUser);
-          
-          // Send Google auth data to backend
-          const response = await fetch('http://localhost:5000/api/auth/google', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+        // Decode the ID token
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        console.log('Token decoded successfully');
+        
+        const decodedData = JSON.parse(jsonPayload);
+        console.log('Decoded payload:', decodedData);
+        
+        const { sub, email, given_name, family_name, picture } = decodedData;
+        
+        // Prepare user data to send to backend
+        const googleUser = {
+          googleId: sub,
+          email: email,
+          firstName: given_name || 'Google',
+          lastName: family_name || 'User',
+          profilePicture: picture || 'https://via.placeholder.com/150'
+        };
+        
+        console.log('Sending data to backend:', googleUser);
+        
+        // Send Google auth data to backend
+        const response = await fetch('http://localhost:5000/api/auth/google', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
             body: JSON.stringify(googleUser),
             credentials: 'include' // Include cookies if needed
-          });
-          
-          const data = await response.json();
-          
-          if (!response.ok) {
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
             // Check for specific error messages
             if (data.message && data.message.includes('already registered with a password')) {
               // Show a more helpful error message with a link to sign in
@@ -591,39 +620,56 @@ export default {
               return;
             }
             
-            throw new Error(data.message || 'Google authentication failed');
-          }
+          throw new Error(data.message || 'Google authentication failed');
+        }
           
           // Check if this was a login or registration
           const isNewUser = data.message === 'Google registration successful';
-          
-          // Store user data and token
-          localStorage.setItem('pathfinder_token', data.token);
-          localStorage.setItem('pathfinder_user', JSON.stringify(data.user));
-          
-          // Show success message
+        
+        // Store user data and token
+        localStorage.setItem('pathfinder_token', data.token);
+        localStorage.setItem('pathfinder_user', JSON.stringify(data.user));
+        
+        // Show success message
           this.successMessage = isNewUser 
             ? 'Account created successfully! Redirecting...' 
             : 'Google authentication successful! Redirecting...';
+        
+        // Close modal and redirect after a short delay
+        setTimeout(async () => {
+          this.closeModal();
           
-          // Close modal and redirect after a short delay
-          setTimeout(() => {
-            this.closeModal();
-            
-            // Navigate based on role
-            if (data.user.role) {
-              if (data.user.role === 'student') {
-                this.$router.push('/student');
-              } else if (data.user.role === 'teacher') {
-                this.$router.push('/teacher-dashboard');
-              } else {
-                this.$router.push('/dashboard');
+          // Navigate based on role
+          if (data.user.role) {
+            const targetRoute = data.user.role === 'student' 
+              ? '/student'
+              : data.user.role === 'teacher'
+                ? '/teacher/analytics'
+                : '/dashboard';
+                
+            // Only navigate if we're not already on the target route
+            if (this.$route.path !== targetRoute) {
+              try {
+                await this.$router.push(targetRoute);
+              } catch (err) {
+                if (err.name !== 'NavigationDuplicated') {
+                  throw err;
+                }
               }
-            } else {
-              // If user doesn't have a role yet
-              this.$router.push('/choose-role');
             }
-          }, 1500);
+          } else {
+            // If user doesn't have a role yet
+            if (this.$route.path !== '/choose-role') {
+              try {
+                await this.$router.push('/choose-role');
+              } catch (err) {
+                if (err.name !== 'NavigationDuplicated') {
+                  throw err;
+                }
+              }
+            }
+          }
+        }, 1500);
         } catch (decodeError) {
           console.error('Error decoding token:', decodeError);
           throw new Error('Unable to process Google authentication response');

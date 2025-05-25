@@ -1,22 +1,28 @@
 <template>
   <div class="modules-list">
     <div class="modules-header">
-      <h1>Learning Modules</h1>
+      <h1><i class="fas fa-graduation-cap"></i> Learning Modules</h1>
       <div class="filter-section">
-        <input 
-          v-model="searchQuery" 
-          type="text" 
-          placeholder="Search modules..."
-          class="search-input"
-        >
-        <select v-model="selectedSubject" class="subject-filter">
-          <option value="">All Subjects</option>
-          <option v-for="subject in subjects" 
-                  :key="subject.id" 
-                  :value="subject.id">
-            {{ subject.name }}
-          </option>
-        </select>
+        <div class="search-wrapper">
+          <i class="fas fa-search"></i>
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            placeholder="Search modules..."
+            class="search-input"
+          >
+        </div>
+        <div class="select-wrapper">
+          <i class="fas fa-filter"></i>
+          <select v-model="selectedSubject" class="subject-filter">
+            <option value="">All Subjects</option>
+            <option v-for="subject in subjects" 
+                    :key="subject.id" 
+                    :value="subject.id">
+              {{ subject.name }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -27,6 +33,7 @@
            :class="{ 'completed': module.completed }">
         <div class="module-header">
           <span :class="['status-badge', module.status]">
+            <i :class="getStatusIcon(module.status)"></i>
             {{ module.status }}
           </span>
           <div class="progress-circle">
@@ -54,7 +61,10 @@
         </div>
         
         <div class="module-content">
-          <h2>{{ module.title }}</h2>
+          <div class="module-title">
+            <i :class="getSubjectIcon(module.subject)"></i>
+            <h2>{{ module.title }}</h2>
+          </div>
           <p>{{ module.description }}</p>
           
           <div class="module-meta">
@@ -66,6 +76,10 @@
               <i class="fas fa-book"></i>
               {{ module.lessons }} lessons
             </span>
+            <span class="difficulty" v-if="module.difficulty">
+              <i class="fas fa-signal"></i>
+              {{ module.difficulty }}
+            </span>
           </div>
         </div>
 
@@ -75,7 +89,8 @@
             @click="startModule(module)"
             :disabled="!module.available"
           >
-            {{ module.completed ? 'Review' : 'Start' }}
+            <i :class="getButtonIcon(module)"></i>
+            {{ module.completed ? 'Review' : module.available ? 'Start' : 'Locked' }}
           </button>
         </div>
       </div>
@@ -106,7 +121,8 @@ export default {
           completed: true,
           duration: '4 hours',
           lessons: 8,
-          available: true
+          available: true,
+          difficulty: 'Intermediate'
         },
         {
           id: 2,
@@ -118,7 +134,8 @@ export default {
           completed: false,
           duration: '6 hours',
           lessons: 12,
-          available: true
+          available: true,
+          difficulty: 'Advanced'
         },
         {
           id: 3,
@@ -130,7 +147,8 @@ export default {
           completed: false,
           duration: '5 hours',
           lessons: 10,
-          available: false
+          available: false,
+          difficulty: 'Advanced'
         }
       ]
     }
@@ -147,6 +165,27 @@ export default {
     }
   },
   methods: {
+    getStatusIcon(status) {
+      const icons = {
+        'available': 'fas fa-check-circle',
+        'in-progress': 'fas fa-spinner fa-spin',
+        'locked': 'fas fa-lock'
+      }
+      return icons[status] || 'fas fa-info-circle'
+    },
+    getSubjectIcon(subjectId) {
+      const icons = {
+        1: 'fas fa-square-root-alt', // Mathematics
+        2: 'fas fa-atom', // Physics
+        3: 'fas fa-book' // Literature
+      }
+      return icons[subjectId] || 'fas fa-book'
+    },
+    getButtonIcon(module) {
+      if (!module.available) return 'fas fa-lock'
+      if (module.completed) return 'fas fa-redo'
+      return 'fas fa-play'
+    },
     startModule(module) {
       this.$router.push(`/student/modules/${module.id}`)
     }
@@ -169,16 +208,25 @@ export default {
   gap: 1rem;
 }
 
-.search-input,
-.subject-filter {
-  padding: 0.8rem;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  outline: none;
+.search-wrapper,
+.select-wrapper {
+  position: relative;
+  flex: 1;
 }
 
-.search-input {
-  flex: 1;
+.search-wrapper i,
+.select-wrapper i {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+}
+
+.search-input,
+.subject-filter {
+  padding: 0.8rem 1rem 0.8rem 2.5rem;
+  width: 100%;
 }
 
 .modules-grid {
@@ -304,6 +352,59 @@ export default {
 .start-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+.modules-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modules-header h1 i {
+  color: var(--primary-color);
+}
+
+.module-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.module-title i {
+  color: var(--primary-color);
+  font-size: 1.2rem;
+}
+
+.module-title h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.status-badge i {
+  font-size: 0.9rem;
+}
+
+.start-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.start-btn i {
+  font-size: 0.9rem;
+}
+
+.difficulty i {
+  color: #666;
 }
 
 @media (max-width: 768px) {

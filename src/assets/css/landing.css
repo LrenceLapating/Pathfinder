@@ -381,40 +381,11 @@ body {
   font-size: 0.9rem;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .landing-nav {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .nav-links ul {
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-  
-  .hero-title {
-    font-size: 2.5rem;
-  }
-  
-  .hero-image {
-    margin-bottom: 2rem;
-  }
-  
-  .footer-content {
-    flex-direction: column;
-    gap: 2rem;
-  }
-  
-  .footer-links {
-    flex-direction: column;
-  }
-}
-
+/* Enhanced Responsive Design */
 @media (max-width: 1024px) {
   .hero-content {
     flex-direction: column-reverse;
+    padding: 2rem 1rem;
   }
   
   .hero-text {
@@ -423,7 +394,127 @@ body {
     margin-bottom: 2rem;
   }
   
+  .hero-title {
+    font-size: 2.5rem;
+    line-height: 1.2;
+  }
+  
+  .hero-description {
+    font-size: 1.1rem;
+  }
+  
   .hero-actions {
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .hero-image {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-nav {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .nav-logo {
+    text-align: center;
+  }
+  
+  .nav-links {
+    width: 100%;
+  }
+  
+  .nav-links ul {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 0;
+  }
+  
+  .hero-title {
+    font-size: 2rem;
+  }
+  
+  .hero-description {
+    font-size: 1rem;
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .hero-actions button {
+    width: 100%;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .feature-card {
+    padding: 1.5rem;
+  }
+  
+  .footer-content {
+    flex-direction: column;
+    gap: 2rem;
+    padding: 2rem 1rem;
+  }
+  
+  .footer-links {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  
+  .footer-column {
+    text-align: center;
+  }
+  
+  .footer-bottom {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .hero-title {
+    font-size: 1.75rem;
+  }
+  
+  .hero-content {
+    padding: 1rem;
+  }
+  
+  .feature-card {
+    padding: 1rem;
+  }
+  
+  .feature-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .feature-title {
+    font-size: 1.25rem;
+  }
+  
+  .footer-content {
+    padding: 1rem;
+  }
+  
+  .footer-column h3 {
+    font-size: 1.25rem;
   }
 } 

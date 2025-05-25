@@ -89,7 +89,34 @@ export default {
         "Can you explain photosynthesis?",
         "How do I write a good essay?"
       ],
-      hasUserSentMessage: false
+      hasUserSentMessage: false,
+      userGradeLevel: null,
+      lastQuizResults: null,
+      currentModule: null,
+      communicationStyle: {
+        elementary: {
+          tone: 'friendly and encouraging',
+          vocabulary: 'simple',
+          examples: 'concrete and relatable'
+        },
+        middleSchool: {
+          tone: 'supportive and clear',
+          vocabulary: 'moderate',
+          examples: 'mix of concrete and abstract'
+        },
+        highSchool: {
+          tone: 'direct and professional',
+          vocabulary: 'advanced',
+          examples: 'abstract and complex'
+        }
+      }
+    }
+  },
+  computed: {
+    currentCommunicationStyle() {
+      if (this.userGradeLevel <= 6) return this.communicationStyle.elementary;
+      if (this.userGradeLevel <= 9) return this.communicationStyle.middleSchool;
+      return this.communicationStyle.highSchool;
     }
   },
   methods: {
@@ -132,9 +159,144 @@ export default {
         this.scrollToBottom()
       })
     },
+    async analyzeQuizMistakes(quizId) {
+      try {
+        // Fetch quiz results and analyze patterns
+        const analysis = await this.performQuizAnalysis(quizId);
+        
+        // Generate personalized explanations
+        const explanations = this.generateMistakeExplanations(analysis);
+        
+        // Add to chat
+        this.addMessage({
+          id: this.messageIdCounter++,
+          sender: 'tutor',
+          text: explanations,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        console.error('Error analyzing quiz:', error);
+      }
+    },
+    async performQuizAnalysis(quizId) {
+      // Mock implementation - replace with actual API call
+      return {
+        mistakePatterns: ['concept_misunderstanding', 'calculation_error'],
+        weakAreas: ['algebraic_expressions', 'equation_solving'],
+        timeSpent: 45,
+        confidenceLevel: 'medium'
+      };
+    },
+    generateMistakeExplanations(analysis) {
+      const style = this.currentCommunicationStyle;
+      let explanation = '';
+
+      if (style.tone === 'friendly and encouraging') {
+        explanation = "Let's look at what happened in your quiz! 😊\n\n";
+      } else if (style.tone === 'supportive and clear') {
+        explanation = "Here's an analysis of your quiz performance:\n\n";
+      } else {
+        explanation = "Quiz Analysis Summary:\n\n";
+      }
+
+      // Add detailed explanations based on analysis
+      analysis.mistakePatterns.forEach(pattern => {
+        explanation += this.generatePatternExplanation(pattern, style);
+      });
+
+      return explanation;
+    },
+    generatePatternExplanation(pattern, style) {
+      const explanations = {
+        concept_misunderstanding: {
+          elementary: "It looks like this idea is a bit tricky! Let's break it down into smaller, fun pieces! 🌟",
+          middleSchool: "This concept needs some clarification. Let's review it step by step.",
+          highSchool: "The fundamental concept requires reinforcement. Consider the following explanation:"
+        },
+        calculation_error: {
+          elementary: "Oops! We made some small calculation mistakes. Let's practice together! 🔢",
+          middleSchool: "There were some calculation errors. Here's a method to double-check your work:",
+          highSchool: "Calculation accuracy could be improved. Review these verification techniques:"
+        }
+      };
+
+      const level = style.tone === 'friendly and encouraging' ? 'elementary' :
+                    style.tone === 'supportive and clear' ? 'middleSchool' : 'highSchool';
+
+      return explanations[pattern][level] + '\n\n';
+    },
+    provideHint(moduleId, conceptId) {
+      const hints = this.generateProgressiveHints(moduleId, conceptId);
+      let hintIndex = this.getCurrentHintIndex(moduleId, conceptId);
+
+      const hint = hints[hintIndex];
+      this.addMessage({
+        id: this.messageIdCounter++,
+        sender: 'tutor',
+        text: this.formatHint(hint, this.currentCommunicationStyle),
+        timestamp: new Date()
+      });
+
+      this.updateHintIndex(moduleId, conceptId, hintIndex + 1);
+    },
+    generateProgressiveHints(moduleId, conceptId) {
+      // Mock implementation - replace with actual hint generation
+      return [
+        {
+          type: 'general',
+          content: 'Think about the basic principles we learned.'
+        },
+        {
+          type: 'specific',
+          content: 'Look at how we solved similar problems before.'
+        },
+        {
+          type: 'detailed',
+          content: 'Here\'s a step-by-step approach to solve this.'
+        }
+      ];
+    },
+    formatHint(hint, style) {
+      let formattedHint = '';
+
+      switch(style.tone) {
+        case 'friendly and encouraging':
+          formattedHint = `💡 Here's a friendly hint: ${hint.content} Keep going! 🌟`;
+          break;
+        case 'supportive and clear':
+          formattedHint = `Hint: ${hint.content} You're making progress!`;
+          break;
+        default:
+          formattedHint = `Strategic Hint: ${hint.content}`;
+      }
+
+      return formattedHint;
+    },
+    getCurrentHintIndex(moduleId, conceptId) {
+      // Mock implementation - replace with actual storage/retrieval
+      return 0;
+    },
+    updateHintIndex(moduleId, conceptId, newIndex) {
+      // Mock implementation - replace with actual storage
+      console.log(`Updated hint index for ${moduleId}:${conceptId} to ${newIndex}`);
+    },
+    setUserGradeLevel(grade) {
+      this.userGradeLevel = grade;
+    },
     respondToMessage(userMessage) {
-      let response = ''
+      let response = '';
       
+      // Enhanced response logic with grade-level adaptation
+      if (userMessage.toLowerCase().includes('help with quiz')) {
+        this.analyzeQuizMistakes(this.lastQuizResults?.id);
+        return;
+      }
+
+      if (userMessage.toLowerCase().includes('hint')) {
+        this.provideHint(this.currentModule?.id, this.currentModule?.currentConceptId);
+        return;
+      }
+
       // Simple response logic - in a real app this would call an AI service
       if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')) {
         response = "Hello! How can I help with your learning today?"
@@ -187,15 +349,32 @@ export default {
     }
   },
   mounted() {
-    // Add initial tutor message
+    // Get user grade level from store or API
+    this.setUserGradeLevel(this.$store.state.user.gradeLevel || 9);
+    
+    // Add initial tutor message with grade-appropriate tone
     setTimeout(() => {
+      const style = this.currentCommunicationStyle;
+      let welcomeMessage = '';
+
+      switch(style.tone) {
+        case 'friendly and encouraging':
+          welcomeMessage = "Hi there! 👋 I'm your friendly AI Tutor! I'm here to help you learn and have fun doing it! What would you like to explore today? 🌟";
+          break;
+        case 'supportive and clear':
+          welcomeMessage = "Hello! 👋 I'm your AI Tutor, ready to help you with your studies. What topic would you like to work on today?";
+          break;
+        default:
+          welcomeMessage = "Welcome. I'm your AI Tutor, prepared to assist with your academic needs. What topic shall we address today?";
+      }
+
       this.addMessage({
         id: this.messageIdCounter++,
         sender: 'tutor',
-        text: "Hi there! 👋 I'm your AI Tutor. I can help explain concepts, solve problems, or give you study tips. What would you like help with today?",
+        text: welcomeMessage,
         timestamp: new Date()
-      })
-    }, 500)
+      });
+    }, 500);
   }
 }
 </script>

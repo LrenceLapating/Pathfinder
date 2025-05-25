@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "serve:vue": "FRAMEWORK=vue vue-cli-service serve",
+    "serve:vue": "vue-cli-service serve",
     "serve:react": "FRAMEWORK=react react-scripts start",
     "build:vue": "FRAMEWORK=vue vue-cli-service build",
     "build:react": "FRAMEWORK=react react-scripts build",

@@ -221,7 +221,7 @@ export default {
           labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
           datasets: [{
             label: 'Hours Spent',
-            data: [2.5, 3, 2, 4, 3.5, 5, 3],
+            data: [2.5, 3, 4, 2, 3.5, 1.5, 2],
             backgroundColor: '#2196F3'
           }]
         },
@@ -261,71 +261,99 @@ export default {
   margin-bottom: 2rem;
 }
 
+.tracker-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1A1A1A;
+}
+
 .time-filter {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
+  background: #f8f9fa;
+  padding: 0.25rem;
+  border-radius: 8px;
 }
 
 .filter-btn {
   padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  background: white;
+  border: none;
+  background: none;
+  border-radius: 6px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
   transition: all 0.3s ease;
 }
 
 .filter-btn.active {
-  background: #4CAF50;
-  color: white;
-  border-color: #4CAF50;
+  background: white;
+  color: #C84C1C;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .tracker-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
 
 .tracker-card {
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.tracker-card h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.2rem;
+  color: #1A1A1A;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .chart-container {
-  height: 300px;
-  margin-top: 1rem;
+  height: 250px;
+  position: relative;
 }
 
 .subject-list {
-  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .subject-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
-  border-bottom: 1px solid #eee;
 }
 
 .subject-info {
   flex: 1;
-  margin-right: 2rem;
+  margin-right: 1rem;
 }
 
 .subject-info h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .progress-bar {
-  width: 100%;
   height: 6px;
-  background: #eee;
+  background: #f0f0f0;
   border-radius: 3px;
+  overflow: hidden;
 }
 
 .progress {
@@ -335,20 +363,22 @@ export default {
 }
 
 .subject-stats {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
 }
 
 .score {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-weight: 600;
+  color: #1A1A1A;
 }
 
 .trend {
   font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .trend.up {
@@ -361,105 +391,56 @@ export default {
 
 .badges-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
-  margin-top: 1rem;
 }
 
 .badge-item {
   display: flex;
+  align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #f5f7fa;
-  border-radius: 10px;
+  background: #f8f9fa;
+  border-radius: 8px;
 }
 
 .badge-icon {
   width: 40px;
   height: 40px;
-  background: #4CAF50;
+  background: #C84C1C;
+  color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  font-size: 1.2rem;
 }
 
 .badge-icon.locked {
-  background: #9e9e9e;
+  background: #ccc;
+}
+
+.badge-info {
+  flex: 1;
 }
 
 .badge-info h4 {
-  margin: 0;
+  margin: 0 0 0.25rem 0;
   font-size: 1rem;
 }
 
 .badge-info p {
-  margin: 0.3rem 0;
+  margin: 0;
   font-size: 0.9rem;
   color: #666;
 }
 
 .progress-text {
-  font-size: 0.8rem;
-  color: #9e9e9e;
-}
-
-@media (max-width: 1024px) {
-  .tracker-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.tracker-header h1 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.tracker-header h1 i {
-  color: var(--primary-color);
-}
-
-.filter-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-btn i {
   font-size: 0.9rem;
-}
-
-.tracker-card h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tracker-card h2 i {
-  color: var(--primary-color);
-}
-
-.subject-info h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.subject-info h3 i {
-  color: var(--primary-color);
-  font-size: 1rem;
-}
-
-.progress-text {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.progress-text i {
   color: #666;
-  font-size: 0.8rem;
+  margin-top: 0.5rem;
 }
 </style> 

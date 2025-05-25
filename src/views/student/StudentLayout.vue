@@ -236,6 +236,7 @@
 
 <script>
 import AITutor from '@/components/student/AITutor.vue'
+import signInImage from '@/assets/images/Pathfinder-logo.png'
 
 export default {
   name: 'StudentLayout',
@@ -251,7 +252,7 @@ export default {
       userName: '',
       userAvatar: '/path/to/avatar.jpg',
       unreadNotifications: 3,
-      compassLogo: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9IndoaXRlIiBzdHJva2U9IiNDODRDMUMiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxwYXRoIGQ9Ik0zNSAzNUw2NSA2NU0zNSA2NUw2NSAzNU0yNSA1MEg3NU01MCAxMFY5MCIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==',
+      compassLogo: signInImage,
       notifications: [
         {
           id: 1,
@@ -433,13 +434,13 @@ export default {
 }
 
 .sidebar-header {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   position: relative;
-  height: 70px;
+  height: 60px;
   box-sizing: border-box;
 }
 
@@ -447,20 +448,25 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
   border-radius: 50%;
   transition: all 0.3s ease;
   overflow: hidden;
   cursor: pointer;
   padding: 0;
+  background: white;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--dl-color-theme-primary1, #fb8500);
 }
 
 .logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  width: 119%;
+  height: 119%;
+  object-fit: cover;
+  padding: 4px;
+  border-radius: 50%;
 }
 
 .logo-text {
@@ -468,6 +474,7 @@ export default {
   font-weight: 700;
   letter-spacing: 0.5px;
   color: white;
+  margin-left: 12px;
 }
 
 .collapse-btn {

@@ -8,7 +8,9 @@
     "build:vue": "FRAMEWORK=vue vue-cli-service build",
     "build:react": "FRAMEWORK=react react-scripts build",
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "build": "FRAMEWORK=vue vue-cli-service build",
+    "vercel-build": "FRAMEWORK=vue vue-cli-service build"
   },
   "dependencies": {
     "@lottiefiles/vue-lottie-player": "1.0.4",

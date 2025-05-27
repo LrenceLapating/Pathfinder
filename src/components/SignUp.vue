@@ -316,7 +316,7 @@ export default {
               const targetRoute = data.user.role === 'student' 
                 ? '/student'
                 : data.user.role === 'teacher'
-                  ? '/teacher/analytics'
+                  ? '/teacher'
                   : '/dashboard';
                   
               // Only navigate if we're not already on the target route
@@ -782,7 +782,7 @@ export default {
             const targetRoute = data.user.role === 'student' 
               ? '/student'
               : data.user.role === 'teacher'
-                ? '/teacher/analytics'
+                ? '/teacher'
                 : '/dashboard';
                 
             // Only navigate if we're not already on the target route

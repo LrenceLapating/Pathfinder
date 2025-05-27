@@ -1,370 +1,288 @@
 <template>
   <div class="teacher-layout">
-    <!-- Sidebar -->
-    <aside :class="['sidebar', { 'collapsed': isSidebarCollapsed }]">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }" @mouseenter="expandSidebar" @mouseleave="collapseSidebar">
       <div class="sidebar-header">
-        <div class="logo-container" title="PathFinder" @click.prevent="goToDashboard">
+        <div class="logo-container" title="PathFinder">
           <img :src="compassLogo" alt="PathFinder" class="logo" />
         </div>
         <span v-if="!isSidebarCollapsed" class="logo-text">PathFinder</span>
-        <button class="collapse-btn" @click="toggleSidebar">
-          <i :class="['fas', isSidebarCollapsed ? 'fa-chevron-right' : 'fa-chevron-left']"></i>
+        <button class="collapse-btn" @click="toggleSidebar" aria-label="Toggle sidebar">
+          <i :class="isSidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
         </button>
       </div>
 
-      <nav class="sidebar-nav">
-        <ul>
-          <li v-for="item in navigationItems" :key="item.path">
-            <router-link :to="item.path" :class="['nav-link', { 'active': isActiveRoute(item.path) }]">
-              <i :class="['nav-icon', item.icon]"></i>
-              <span class="nav-text" v-show="!isSidebarCollapsed">{{ item.name }}</span>
-              <span v-if="item.badge && !isSidebarCollapsed" 
-                :class="['badge', 'badge-' + item.badge.type]">
-                {{ item.badge.value }}
-              </span>
-            </router-link>
-          </li>
-        </ul>
-      </nav>
+      <div class="nav-links">
+        <div class="nav-section">
+          <span v-if="!isSidebarCollapsed" class="section-title">MAIN</span>
+          
+          <router-link to="/teacher" class="nav-link" exact>
+            <div class="link-icon">
+              <i class="fas fa-home"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Dashboard</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+        </div>
+        
+        <div class="nav-section">
+          <span v-if="!isSidebarCollapsed" class="section-title">LEARNING</span>
+          <router-link to="/teacher/classrooms" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-chalkboard"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Classrooms</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+          <router-link to="/teacher/performance" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Performance</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+          <router-link to="/teacher/score-upload" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-upload"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Upload Scores</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+          <router-link to="/teacher/analytics" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-chart-bar"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Analytics</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+        </div>
+        
+        <div class="nav-section">
+          <span v-if="!isSidebarCollapsed" class="section-title">USER</span>
+
+          <router-link to="/teacher/profile" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-user"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Profile</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+        </div>
+      </div>
 
       <div class="sidebar-footer">
-        <div class="teacher-info">
-          <img :src="teacher.avatar" :alt="teacher.name" class="teacher-avatar" />
-          <div class="teacher-details" v-show="!isSidebarCollapsed">
-            <span class="teacher-name">{{ teacher.name }}</span>
-            <span class="teacher-role">{{ teacher.role }}</span>
-          </div>
-        </div>
+        <!-- Empty footer to maintain spacing -->
       </div>
-    </aside>
+    </nav>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <div class="main-content" :class="{ 'expanded': isSidebarCollapsed }">
       <!-- Top Bar -->
-      <header class="top-bar">
-        <div class="page-header">
-          <h1 class="page-title">{{ currentPageTitle }}</h1>
-          <nav class="breadcrumb" aria-label="breadcrumb">
-            <ol>
-              <li><router-link to="/teacher/dashboard">Dashboard</router-link></li>
-              <li v-if="currentPageTitle !== 'Dashboard'">{{ currentPageTitle }}</li>
-            </ol>
-          </nav>
+      <div class="top-bar">
+        <div class="breadcrumb">
+          <h1>{{ pageTitle }}</h1>
         </div>
-
-        <div class="top-actions">
-          <div class="search-box">
-            <i class="fas fa-search search-icon"></i>
-            <input 
-              type="text" 
-              placeholder="Search..." 
-              v-model="searchQuery"
-              @input="handleSearch"
-            />
-          </div>
-
-          <div class="action-buttons">
-            <button class="btn-icon" @click="openQuickAdd" title="Quick Add">
-              <i class="fas fa-plus"></i>
-            </button>
-
-            <div class="notifications-dropdown" v-click-outside="closeNotifications">
-              <button class="btn-icon" @click="toggleNotifications" title="Notifications">
-                <i class="fas fa-bell"></i>
-                <span v-if="unreadNotifications" class="notification-badge">
-                  {{ unreadNotifications }}
-                </span>
-              </button>
-              <div v-if="showNotifications" class="dropdown-menu">
-                <div class="dropdown-header">
-                  <h3>Notifications</h3>
-                  <button class="btn-text" @click="markAllRead">Mark all as read</button>
-                </div>
-                <div class="notification-list">
-                  <div v-for="notification in notifications" :key="notification.id"
-                    :class="['notification-item', { 'unread': !notification.read }]">
-                    <div class="notification-icon">
-                      <i :class="notification.icon"></i>
-                    </div>
-                    <div class="notification-content">
-                      <p class="notification-text">{{ notification.text }}</p>
-                      <span class="notification-time">{{ notification.time }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="dropdown-footer">
-                  <router-link to="/teacher/notifications">View all notifications</router-link>
-                </div>
-              </div>
-            </div>
-
-            <div class="profile-dropdown" v-click-outside="closeProfileMenu">
-              <button class="btn-icon" @click="toggleProfileMenu" title="Profile">
-                <img :src="teacher.avatar" :alt="teacher.name" class="profile-avatar" />
-              </button>
-              <div v-if="showProfileMenu" class="dropdown-menu">
-                <div class="dropdown-header">
-                  <h3>{{ teacher.name }}</h3>
-                  <p>{{ teacher.role }}</p>
-                </div>
-                <div class="dropdown-items">
-                  <router-link to="/teacher/profile" class="dropdown-item">
-                    <i class="fas fa-user"></i>
-                    My Profile
-                  </router-link>
-                  <router-link to="/teacher/settings" class="dropdown-item">
-                    <i class="fas fa-cog"></i>
-                    Settings
-                  </router-link>
-                  <button class="dropdown-item" @click="logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <!-- Quick Add Modal -->
-      <div v-if="showQuickAdd" class="modal-overlay" @click="closeQuickAdd">
-        <div class="quick-add-modal" @click.stop>
-          <div class="modal-header">
-            <h2>Quick Actions</h2>
-            <button class="close-button" @click="closeQuickAdd">
-              <i class="fas fa-times"></i>
+        <div class="user-menu">
+          <div class="notifications">
+            <button class="notification-btn" @click="toggleNotifications">
+              <i class="fas fa-bell"></i>
+              <span v-if="unreadNotifications" class="notification-badge">
+                {{ unreadNotifications }}
+              </span>
             </button>
           </div>
-          <div class="quick-actions-grid">
-            <button 
-              v-for="action in quickActions" 
-              :key="action.id"
-              class="quick-action-btn"
-              @click="handleQuickAction(action)"
-            >
-              <i :class="['quick-action-icon', action.icon]"></i>
-              <span class="quick-action-text">{{ action.name }}</span>
-            </button>
+          <div class="profile-menu" @click="toggleProfileMenu">
+            <img :src="userAvatar" :alt="userName" class="avatar" />
+            <span class="user-name">{{ userName }}</span>
+            <i class="fas fa-chevron-down"></i>
           </div>
         </div>
       </div>
 
-      <!-- Main Content Area -->
-      <div class="content-area">
-        <router-view></router-view>
+      <!-- Page Content -->
+      <div class="page-content">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </div>
-    </main>
+    </div>
+
+    <!-- Notifications Panel -->
+    <transition name="slide-fade">
+      <NotificationsPanel v-if="showNotifications" @close="toggleNotifications" />
+    </transition>
+
+    <!-- Profile Menu -->
+    <transition name="slide-fade">
+      <div v-if="showProfileMenu" class="profile-dropdown">
+        <div class="dropdown-item" @click="navigateToProfile('profile')">
+          <i class="fas fa-user"></i>
+          My Profile
+        </div>
+        <div class="dropdown-item" @click="navigateToProfile('settings')">
+          <i class="fas fa-cog"></i>
+          Settings
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item" @click="logout">
+          <i class="fas fa-sign-out-alt"></i>
+          Logout
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script>
 import { Chart } from 'chart.js/auto'
 import signInImage from '@/assets/images/Pathfinder-logo.png'
+import NotificationsPanel from '@/components/teacher/NotificationsPanel.vue'
 
 export default {
   name: 'TeacherLayout',
   
+  components: {
+    NotificationsPanel
+  },
+  
   data() {
     return {
-      isSidebarCollapsed: false,
-      showQuickAdd: false,
+      isSidebarCollapsed: true,
+      hoverEnabled: true,
       showProfileMenu: false,
       showNotifications: false,
-      searchQuery: '',
-      unreadNotifications: 5,
       compassLogo: signInImage,
-      teacher: {
-        name: 'Sarah Johnson',
-        role: 'Mathematics Teacher',
-        avatar: '/avatars/teacher1.jpg'
-      },
-      navigationItems: [
-        {
-          name: 'Dashboard',
-          path: '/teacher/analytics',
-          icon: 'fas fa-home'
-        },
-        {
-          name: 'Students',
-          path: '/teacher/students',
-          icon: 'fas fa-users'
-        },
-        {
-          name: 'Schedule',
-          path: '/teacher/schedule',
-          icon: 'fas fa-calendar-alt'
-        },
-        {
-          name: 'Modules',
-          path: '/teacher/modules',
-          icon: 'fas fa-book'
-        },
-        {
-          name: 'Quizzes',
-          path: '/teacher/quizzes',
-          icon: 'fas fa-tasks'
-        },
-        {
-          name: 'Resources',
-          path: '/teacher/resources',
-          icon: 'fas fa-folder'
-        },
-        {
-          name: 'Messages',
-          path: '/teacher/messages',
-          icon: 'fas fa-envelope',
-          badge: {
-            type: 'primary',
-            value: '3'
-          }
-        },
-        {
-          name: 'Notifications',
-          path: '/teacher/notifications',
-          icon: 'fas fa-bell',
-          badge: {
-            type: 'primary',
-            value: '5'
-          }
-        },
-        {
-          name: 'Profile',
-          path: '/teacher/profile',
-          icon: 'fas fa-user'
-        }
-      ],
-      quickActions: [
-        {
-          id: 'create-assignment',
-          name: 'Create Assignment',
-          icon: 'fas fa-file-alt',
-          action: () => this.$router.push('/teacher/modules/create')
-        },
-        {
-          id: 'schedule-class',
-          name: 'Schedule Class',
-          icon: 'fas fa-calendar-plus',
-          action: () => this.$router.push('/teacher/schedule/create')
-        },
-        {
-          id: 'add-resource',
-          name: 'Add Resource',
-          icon: 'fas fa-plus-circle',
-          action: () => this.$router.push('/teacher/resources/create')
-        },
-        {
-          id: 'create-quiz',
-          name: 'Create Quiz',
-          icon: 'fas fa-question-circle',
-          action: () => this.$router.push('/teacher/quizzes/create')
-        }
-      ],
+      pageTitle: 'Dashboard',
+      userName: 'Sarah Johnson',
+      userAvatar: '/avatars/teacher1.jpg',
+      unreadNotifications: 3,
       notifications: [
         {
           id: 1,
-          text: 'New assignment submission from John Doe',
-          time: '5 minutes ago',
-          icon: 'fas fa-file-alt',
-          read: false
-        },
-        {
-          id: 2,
-          text: 'Quiz results ready for Math 101',
-          time: '1 hour ago',
-          icon: 'fas fa-clipboard-check',
+          message: 'Welcome to PathFinder Teacher Dashboard',
+          time: 'Just now',
+          icon: 'fas fa-info-circle',
           read: false
         }
       ]
     }
   },
-
+  
   computed: {
-    currentPageTitle() {
-      return this.$route.meta.title || 'Dashboard'
+    currentRoute() {
+      return this.$route.path;
     }
   },
-
+  
+  watch: {
+    currentRoute(newRoute) {
+      this.updatePageTitle(newRoute);
+    }
+  },
+  
+  mounted() {
+    this.updatePageTitle(this.$route.path);
+  },
+  
   methods: {
     toggleSidebar() {
-      this.isSidebarCollapsed = !this.isSidebarCollapsed
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+      this.hoverEnabled = false;
+      
+      // Re-enable hover after a delay
+      setTimeout(() => {
+        this.hoverEnabled = true;
+      }, 1500);
     },
-
-    isActiveRoute(path) {
-      return this.$route.path === path || this.$route.path.startsWith(path + '/')
-    },
-
-    openQuickAdd() {
-      this.showQuickAdd = true
-    },
-
-    closeQuickAdd() {
-      this.showQuickAdd = false
-    },
-
+    
     toggleProfileMenu() {
-      this.showProfileMenu = !this.showProfileMenu
+      this.showProfileMenu = !this.showProfileMenu;
       if (this.showProfileMenu) {
-        this.showNotifications = false
+        this.showNotifications = false;
       }
     },
-
-    closeProfileMenu() {
-      this.showProfileMenu = false
-    },
-
+    
     toggleNotifications() {
-      this.showNotifications = !this.showNotifications
+      this.showNotifications = !this.showNotifications;
       if (this.showNotifications) {
-        this.showProfileMenu = false
+        this.showProfileMenu = false;
       }
     },
-
-    closeNotifications() {
-      this.showNotifications = false
+    
+    updatePageTitle(route) {
+      if (route.includes('/teacher/profile')) {
+        this.pageTitle = 'Profile & Settings';
+      } else if (route.includes('/teacher/classrooms')) {
+        this.pageTitle = 'Classroom Management';
+      } else if (route.includes('/teacher/classroom/')) {
+        this.pageTitle = 'Classroom Detail';
+      } else if (route.includes('/teacher/performance')) {
+        this.pageTitle = 'Student Performance';
+      } else if (route.includes('/teacher/score-upload')) {
+        this.pageTitle = 'Upload Scores';
+      } else if (route.includes('/teacher/analytics')) {
+        this.pageTitle = 'Analytics';
+      } else {
+        this.pageTitle = 'Dashboard';
+      }
     },
-
-    handleSearch() {
-      // Implement search functionality
-      console.log('Searching:', this.searchQuery)
+    
+    navigateToProfile(tab = 'settings') {
+      if (tab) {
+        // Pass the active tab as a query parameter
+        this.$router.push({ 
+          path: '/teacher/profile',
+          query: { tab }
+        });
+      }
+      this.showProfileMenu = false;
     },
-
-    markAllRead() {
-      this.unreadNotifications = 0
-      this.notifications.forEach(n => n.read = true)
-      this.closeNotifications()
-    },
-
-    handleQuickAction(action) {
-      action.action()
-      this.closeQuickAdd()
-    },
-
+    
     logout() {
-      localStorage.removeItem('pathfinder_token')
-      localStorage.removeItem('pathfinder_user_role')
-      this.$router.push('/')
+      localStorage.removeItem('pathfinder_token');
+      localStorage.removeItem('pathfinder_user');
+      localStorage.removeItem('pathfinder_user_role');
+      this.$router.push('/');
     },
-
-    goToDashboard() {
-      if (this.$route.path !== '/teacher/analytics') {
-        this.$router.push('/teacher/analytics')
+    
+    markAsRead(notificationId) {
+      const index = this.notifications.findIndex(n => n.id === notificationId);
+      if (index !== -1) {
+        this.notifications[index].read = true;
+        this.unreadNotifications = Math.max(0, this.unreadNotifications - 1);
       }
-    }
-  },
-
-  directives: {
-    clickOutside: {
-      mounted(el, binding) {
-        el.clickOutsideEvent = function(event) {
-          if (!(el === event.target || el.contains(event.target))) {
-            binding.value()
-          }
-        }
-        document.addEventListener('click', el.clickOutsideEvent)
-      },
-      unmounted(el) {
-        document.removeEventListener('click', el.clickOutsideEvent)
+    },
+    
+    markAllAsRead() {
+      this.notifications.forEach(notification => {
+        notification.read = true;
+      });
+      this.unreadNotifications = 0;
+    },
+    
+    expandSidebar() {
+      if (this.hoverEnabled) {
+        this.isSidebarCollapsed = false;
+      }
+    },
+    
+    collapseSidebar() {
+      if (this.hoverEnabled) {
+        this.isSidebarCollapsed = true;
       }
     }
   }
@@ -372,34 +290,47 @@ export default {
 </script>
 
 <style scoped>
+/* This matches the styling from StudentLayout.vue */
 .teacher-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #f8fafc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Sidebar Styles */
+/* Sidebar */
 .sidebar {
-  width: 280px;
-  background-color: #1a1a1a;
+  width: 250px;
+  background: #1a1a1a;
   color: white;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
-  position: fixed;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  z-index: 100;
   height: 100vh;
-  z-index: 1000;
+  position: fixed;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar.collapsed {
-  width: 80px;
+  width: 70px;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 1.25rem 0.5rem;
+  align-items: center;
+}
+
+.sidebar.collapsed .logo-container {
+  margin: 0 auto;
 }
 
 .sidebar-header {
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   position: relative;
   height: 60px;
@@ -410,9 +341,9 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   border-radius: 50%;
   transition: all 0.3s ease;
   overflow: hidden;
@@ -440,480 +371,458 @@ export default {
 }
 
 .collapse-btn {
-  background: transparent;
+  background: none;
   border: none;
-  color: white;
+  color: #666;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: background-color 0.3s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 5;
+  margin-left: auto;
+  font-size: 0.8rem;
 }
 
 .collapse-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
-.sidebar-nav {
+.nav-links {
+  padding: 0.5rem 0;
   flex: 1;
-  padding: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   overflow-y: auto;
 }
 
+.nav-section {
+  padding: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.section-title {
+  padding: 0 1.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+}
+
 .nav-link {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 0.75rem 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255,255,255,0.7);
   text-decoration: none;
+  transition: all 0.3s ease;
+  border-radius: 0 8px 8px 0;
+  margin-right: 0.75rem;
+}
+
+.link-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+  font-size: 1.1rem;
+  flex-shrink: 0;
   transition: all 0.3s ease;
 }
 
-.nav-link:hover,
-.nav-link.active {
+.link-content {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.link-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: transform 0.3s ease;
+}
+
+.hover-indicator {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #C84C1C;
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover {
   color: white;
-  background-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255,255,255,0.05);
 }
 
-.nav-icon {
-  width: 24px;
-  text-align: center;
-  margin-right: 1rem;
-}
-
-.badge {
-  margin-left: auto;
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-}
-
-.badge-success {
-  background-color: #10b981;
+.nav-link.router-link-active {
   color: white;
+  background: rgba(200, 76, 28, 0.1);
+  border-left: 3px solid #C84C1C;
+  padding-left: calc(1.5rem - 3px);
 }
 
-.badge-primary {
-  background-color: #3b82f6;
-  color: white;
+.nav-link:hover .hover-indicator,
+.nav-link.router-link-active .hover-indicator {
+  width: 100%;
+}
+
+.nav-link:hover .link-icon,
+.nav-link.router-link-active .link-icon {
+  color: #C84C1C;
 }
 
 .sidebar-footer {
-  padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.25rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin-top: auto;
 }
 
-.teacher-info {
+/* Main Content */
+.main-content {
+  flex: 1;
+  margin-left: 250px;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: calc(100% - 250px);
+}
+
+.main-content.expanded {
+  margin-left: 70px;
+  width: calc(100% - 70px);
+}
+
+.top-bar {
+  padding: 1rem 2rem;
+  background: white;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.breadcrumb h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1A1A1A;
+  position: relative;
+  display: inline-block;
+}
+
+.breadcrumb h1:after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: #C84C1C;
+  border-radius: 2px;
+}
+
+.user-menu {
   display: flex;
   align-items: center;
-  gap: 1rem;
 }
 
-.teacher-avatar {
+.notification-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-right: 20px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.notification-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #ff3e3e;
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-menu {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background 0.3s;
+}
+
+.profile-menu:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.teacher-details {
+.user-name {
+  margin: 0 12px;
+  font-weight: 500;
+}
+
+.page-content {
+  flex-grow: 1;
+  padding: 30px;
+  overflow-y: auto;
+}
+
+/* Notifications Panel */
+.notifications-panel {
+  position: fixed;
+  top: 70px;
+  right: 0;
+  width: 350px;
+  height: calc(100vh - 70px);
+  background-color: #fff;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 90;
   display: flex;
   flex-direction: column;
 }
 
-.teacher-name {
-  font-weight: 600;
-  color: white;
-}
-
-.teacher-role {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-/* Main Content Styles */
-.main-content {
-  flex: 1;
-  margin-left: 280px;
-  transition: margin-left 0.3s ease;
-}
-
-.sidebar.collapsed + .main-content {
-  margin-left: 80px;
-}
-
-.top-bar {
-  background-color: white;
-  padding: 1rem 2rem;
+.panel-header {
+  height: 60px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  padding: 0 20px;
+  border-bottom: 1px solid #eee;
 }
 
-.page-header {
-  display: flex;
-  flex-direction: column;
-}
-
-.page-title {
-  font-size: 1.5rem;
+.panel-header h2 {
+  margin: 0;
+  font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
-  margin: 0;
 }
 
-.breadcrumb {
-  margin-top: 0.25rem;
-}
-
-.breadcrumb ol {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-}
-
-.breadcrumb li {
-  display: flex;
-  align-items: center;
-  color: #64748b;
-  font-size: 0.875rem;
-}
-
-.breadcrumb li:not(:last-child)::after {
-  content: '/';
-  margin: 0 0.5rem;
-  color: #cbd5e1;
-}
-
-.breadcrumb a {
-  color: #64748b;
-  text-decoration: none;
-}
-
-.breadcrumb a:hover {
-  color: #2563eb;
-}
-
-.top-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.search-box {
-  position: relative;
-  width: 300px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #64748b;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  transition: all 0.3s ease;
-}
-
-.search-box input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.panel-header button {
+  background: transparent;
   border: none;
-  background-color: transparent;
-  color: #64748b;
   cursor: pointer;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  transition: all 0.3s ease;
+  border-radius: 4px;
+  transition: background 0.3s;
 }
 
-.btn-icon:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
+.panel-header button:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-.notification-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background-color: #ef4444;
-  color: white;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 9999px;
-  min-width: 20px;
-  text-align: center;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.5rem;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  width: 320px;
-  z-index: 1000;
-}
-
-.dropdown-header {
-  padding: 1rem;
-  border-bottom: 1px solid #e2e8f0;
+.empty-notifications {
+  flex-grow: 1;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  color: #a0a0a0;
 }
 
-.dropdown-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: #1e293b;
+.empty-notifications i {
+  font-size: 48px;
+  margin-bottom: 12px;
 }
 
-.btn-text {
-  background: none;
-  border: none;
-  color: #2563eb;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.notification-list {
-  max-height: 400px;
+.notifications-list {
+  flex-grow: 1;
   overflow-y: auto;
+  padding: 10px 0;
 }
 
 .notification-item {
-  padding: 1rem;
   display: flex;
-  align-items: start;
-  gap: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-  transition: background-color 0.3s ease;
+  align-items: flex-start;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  transition: background 0.3s;
 }
 
 .notification-item:hover {
-  background-color: #f8fafc;
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .notification-item.unread {
-  background-color: #f0f9ff;
+  background: rgba(59, 125, 221, 0.05);
 }
 
 .notification-icon {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background-color: #e0f2fe;
-  color: #0ea5e9;
+  background-color: #e6f0ff;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #3b7ddd;
+  margin-right: 15px;
+  flex-shrink: 0;
 }
 
 .notification-content {
-  flex: 1;
+  flex-grow: 1;
 }
 
 .notification-text {
-  margin: 0;
-  color: #1e293b;
-  font-size: 0.875rem;
+  margin: 0 0 5px;
+  font-size: 14px;
 }
 
 .notification-time {
-  display: block;
-  margin-top: 0.25rem;
-  color: #64748b;
-  font-size: 0.75rem;
+  font-size: 12px;
+  color: #a0a0a0;
 }
 
-.dropdown-footer {
-  padding: 1rem;
-  text-align: center;
-  border-top: 1px solid #e2e8f0;
-}
-
-.dropdown-footer a {
-  color: #2563eb;
-  text-decoration: none;
-  font-size: 0.875rem;
-}
-
-.content-area {
-  padding: 2rem;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+.mark-read-btn {
+  background: transparent;
+  border: none;
+  color: #3b7ddd;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
+  border-radius: 4px;
+  margin-left: 10px;
+  transition: background 0.3s;
 }
 
-.quick-add-modal {
-  background-color: white;
-  border-radius: 0.5rem;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
+.mark-read-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-.modal-header {
-  padding: 1rem;
-  border-bottom: 1px solid #e2e8f0;
+.panel-footer {
+  height: 60px;
+  border-top: 1px solid #eee;
+  padding: 10px 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: center;
 }
 
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: #1e293b;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: #64748b;
+.mark-all-btn {
+  background-color: transparent;
+  color: #3b7ddd;
+  border: 1px solid #3b7ddd;
+  border-radius: 4px;
+  padding: 8px 15px;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
-.close-button:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
+.mark-all-btn:hover {
+  background-color: #3b7ddd;
+  color: #fff;
 }
 
-.quick-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem;
+/* Profile Dropdown */
+.profile-dropdown {
+  position: absolute;
+  top: 60px;
+  right: 10px;
+  width: 200px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  z-index: 100;
 }
 
-.quick-action-btn {
+.dropdown-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1.5rem;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  padding: 14px 20px;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.3s;
   cursor: pointer;
-  transition: all 0.3s ease;
 }
 
-.quick-action-btn:hover {
-  background-color: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
+.dropdown-item:hover {
+  background-color: #f9f9f9;
 }
 
-.quick-action-icon {
-  font-size: 1.5rem;
-  color: #2563eb;
-}
-
-.quick-action-text {
-  font-size: 0.875rem;
-  color: #1e293b;
+.dropdown-item i {
+  width: 20px;
+  margin-right: 12px;
   text-align: center;
+  font-size: 16px;
+  color: #555;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 80px;
-  }
-
-  .main-content {
-    margin-left: 80px;
-  }
-
-  .nav-text,
-  .teacher-details {
-    display: none;
-  }
-
-  .search-box {
-    width: 200px;
-  }
+.dropdown-divider {
+  height: 1px;
+  background-color: #eee;
+  margin: 0;
 }
 
-@media (max-width: 768px) {
-  .top-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  .search-box {
-    width: 100%;
-  }
-
-  .quick-actions-grid {
-    grid-template-columns: 1fr;
-  }
+/* Transitions */
+.slide-fade-enter-active, .slide-fade-leave-active {
+  transition: all 0.3s ease;
 }
 
-@media (max-width: 640px) {
-  .sidebar {
-    position: fixed;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
+.slide-fade-enter-from, .slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
 
-  .sidebar.show {
-    transform: translateX(0);
-  }
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
 
-  .main-content {
-    margin-left: 0;
-  }
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
 
-  .content-area {
-    padding: 1rem;
-  }
+.list-enter-active, .list-leave-active {
+  transition: all 0.3s;
+}
+
+.list-enter-from, .list-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
 }
 </style> 

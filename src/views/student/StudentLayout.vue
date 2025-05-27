@@ -1,7 +1,7 @@
 <template>
   <div class="student-layout">
     <!-- Sidebar Navigation -->
-    <nav class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
+    <nav class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }" @mouseenter="expandSidebar" @mouseleave="collapseSidebar">
       <div class="sidebar-header">
         <div class="logo-container" title="PathFinder">
           <img :src="compassLogo" alt="PathFinder" class="logo" />
@@ -10,13 +10,6 @@
         <button class="collapse-btn" @click="toggleSidebar" aria-label="Toggle sidebar">
           <i :class="isSidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
         </button>
-      </div>
-
-      <div class="sidebar-search" v-if="!isSidebarCollapsed">
-        <div class="search-container">
-          <i class="fas fa-search"></i>
-          <input type="text" placeholder="Search..." />
-        </div>
       </div>
 
       <div class="nav-links">
@@ -33,16 +26,6 @@
             </div>
           </router-link>
 
-          <router-link to="/student/modules" class="nav-link">
-            <div class="link-icon">
-              <i class="fas fa-book"></i>
-            </div>
-            <div v-if="!isSidebarCollapsed" class="link-content">
-              <span class="link-text">Modules</span>
-              <span class="hover-indicator"></span>
-            </div>
-          </router-link>
-
           <router-link to="/student/performance" class="nav-link">
             <div class="link-icon">
               <i class="fas fa-chart-line"></i>
@@ -52,47 +35,37 @@
               <span class="hover-indicator"></span>
             </div>
           </router-link>
-
-          <router-link to="/student/schedule" class="nav-link">
-            <div class="link-icon">
-              <i class="fas fa-calendar-alt"></i>
-            </div>
-            <div v-if="!isSidebarCollapsed" class="link-content">
-              <span class="link-text">Schedule</span>
-              <span class="hover-indicator"></span>
-            </div>
-          </router-link>
         </div>
         
         <div class="nav-section">
           <span v-if="!isSidebarCollapsed" class="section-title">LEARNING</span>
 
-          <router-link to="/student/resources" class="nav-link">
-            <div class="link-icon">
-              <i class="fas fa-folder"></i>
-            </div>
-            <div v-if="!isSidebarCollapsed" class="link-content">
-              <span class="link-text">Resources</span>
-              <span class="hover-indicator"></span>
-            </div>
-          </router-link>
-
-          <router-link to="/student/remedial" class="nav-link">
-            <div class="link-icon">
-              <i class="fas fa-graduation-cap"></i>
-            </div>
-            <div v-if="!isSidebarCollapsed" class="link-content">
-              <span class="link-text">Learning Support</span>
-              <span class="hover-indicator"></span>
-            </div>
-          </router-link>
-
-          <router-link to="/student/community" class="nav-link">
+          <router-link to="/student/classrooms" class="nav-link">
             <div class="link-icon">
               <i class="fas fa-users"></i>
             </div>
             <div v-if="!isSidebarCollapsed" class="link-content">
-              <span class="link-text">Community</span>
+              <span class="link-text">Classrooms</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+
+          <router-link to="/student/study-guide" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-book-open"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Study Guides</span>
+              <span class="hover-indicator"></span>
+            </div>
+          </router-link>
+
+          <router-link to="/student/quiz-review" class="nav-link">
+            <div class="link-icon">
+              <i class="fas fa-clipboard-check"></i>
+            </div>
+            <div v-if="!isSidebarCollapsed" class="link-content">
+              <span class="link-text">Quiz Review</span>
               <span class="hover-indicator"></span>
             </div>
           </router-link>
@@ -110,26 +83,11 @@
               <span class="hover-indicator"></span>
             </div>
           </router-link>
-
-          <router-link to="/student/activity" class="nav-link">
-            <div class="link-icon">
-              <i class="fas fa-history"></i>
-            </div>
-            <div v-if="!isSidebarCollapsed" class="link-content">
-              <span class="link-text">Activity Log</span>
-              <span class="hover-indicator"></span>
-            </div>
-          </router-link>
         </div>
       </div>
 
       <div class="sidebar-footer">
-        <button class="ai-tutor-btn" @click="toggleAITutor">
-          <div class="btn-icon">
-            <i class="fas fa-robot"></i>
-          </div>
-          <span v-if="!isSidebarCollapsed" class="btn-text">AI Tutor</span>
-        </button>
+        <!-- Empty footer to maintain spacing -->
       </div>
     </nav>
 
@@ -149,6 +107,11 @@
               </span>
             </button>
           </div>
+          <div class="join-class">
+            <button class="join-class-btn" @click="toggleJoinClassroom" title="Join Classroom">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
           <div class="profile-menu" @click="toggleProfileMenu">
             <img :src="userAvatar" :alt="userName" class="avatar" />
             <span class="user-name">{{ userName }}</span>
@@ -166,15 +129,6 @@
         </router-view>
       </div>
     </div>
-
-    <!-- AI Tutor Component -->
-    <transition name="slide">
-      <AITutor 
-        v-if="showAITutor" 
-        @close="toggleAITutor"
-        ref="aiTutor"
-      />
-    </transition>
 
     <!-- Notifications Panel -->
     <transition name="slide-fade">
@@ -231,24 +185,67 @@
         </div>
       </div>
     </transition>
+
+    <!-- Join Classroom Modal -->
+    <transition name="fade">
+      <div v-if="showJoinClassroom" class="modal-overlay" @click.self="toggleJoinClassroom">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h2>Join Classroom</h2>
+            <button @click="toggleJoinClassroom" class="close-btn">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Enter the classroom code provided by your teacher to join.</p>
+            <div class="input-group">
+              <input 
+                type="text" 
+                v-model="classroomCode" 
+                placeholder="Enter classroom code"
+                :disabled="joiningClass"
+              >
+              <button 
+                @click="joinClassroom" 
+                :disabled="!classroomCode || joiningClass"
+                class="join-btn"
+              >
+                <i v-if="joiningClass" class="fas fa-spinner fa-spin"></i>
+                <span v-else>Join</span>
+              </button>
+            </div>
+            <div v-if="joinError" class="error-message">
+              {{ joinError }}
+            </div>
+            <div v-if="joinSuccess" class="success-message">
+              <i class="fas fa-check-circle"></i>
+              {{ joinSuccess }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script>
-import AITutor from '@/components/student/AITutor.vue'
 import signInImage from '@/assets/images/Pathfinder-logo.png'
 
 export default {
   name: 'StudentLayout',
   components: {
-    AITutor
   },
   data() {
     return {
-      isSidebarCollapsed: false,
-      showAITutor: false,
+      isSidebarCollapsed: true,
+      hoverEnabled: true,
       showNotifications: false,
       showProfileMenu: false,
+      showJoinClassroom: false,
+      classroomCode: '',
+      joiningClass: false,
+      joinError: '',
+      joinSuccess: '',
       userName: '',
       userAvatar: '/path/to/avatar.jpg',
       unreadNotifications: 3,
@@ -283,14 +280,14 @@ export default {
       // Map routes to titles
       const routeTitles = {
         'student-dashboard': 'Dashboard',
-        'student-modules': 'Learning Modules',
         'student-performance': 'Performance Tracker',
-        'student-schedule': 'Smart Schedule',
-        'student-resources': 'Resource Library',
         'student-profile': 'My Profile',
-        'student-activity': 'Activity Log',
-        'student-remedial': 'Learning Support',
-        'student-community': 'Community'
+        'student-classrooms': 'My Classrooms',
+        'student-classroom-detail': 'Classroom',
+        'study-guide': 'Personalized Study Guides',
+        'study-guide-detail': 'Study Guide',
+        'quiz-review': 'Quiz & Exam Review',
+        'quiz-review-detail': 'Quiz Review'
       }
       return routeTitles[this.$route.name] || 'Dashboard'
     }
@@ -300,21 +297,36 @@ export default {
       this.isSidebarCollapsed = !this.isSidebarCollapsed
       // Store sidebar state in localStorage for persistence
       localStorage.setItem('pathfinder_sidebar_collapsed', this.isSidebarCollapsed.toString())
+      this.hoverEnabled = false;
+      
+      // Re-enable hover after a delay
+      setTimeout(() => {
+        this.hoverEnabled = true;
+      }, 1500);
+      
       this.$emit('sidebar-toggle', this.isSidebarCollapsed)
-    },
-    toggleAITutor() {
-      this.showAITutor = !this.showAITutor
-      if (this.showAITutor && this.$refs.aiTutor) {
-        this.$refs.aiTutor.open()
-      }
     },
     toggleNotifications() {
       this.showNotifications = !this.showNotifications
       this.showProfileMenu = false
+      this.showJoinClassroom = false
+    },
+    toggleJoinClassroom() {
+      this.showJoinClassroom = !this.showJoinClassroom
+      this.showProfileMenu = false
+      this.showNotifications = false
+      
+      // Reset state when opening
+      if (this.showJoinClassroom) {
+        this.classroomCode = ''
+        this.joinError = ''
+        this.joinSuccess = ''
+      }
     },
     toggleProfileMenu() {
       this.showProfileMenu = !this.showProfileMenu
       this.showNotifications = false
+      this.showJoinClassroom = false
     },
     navigateToProfile() {
       this.$router.push('/student/profile')
@@ -345,6 +357,59 @@ export default {
     },
     updateUnreadCount() {
       this.unreadNotifications = this.notifications.filter(n => !n.read).length
+    },
+    joinClassroom() {
+      this.joiningClass = true
+      this.joinError = ''
+      this.joinSuccess = ''
+      
+      // Simulate API call
+      setTimeout(() => {
+        if (this.classroomCode === 'MATH101' || this.classroomCode === 'PHYS202' || this.classroomCode === 'BIO303') {
+          // Success case
+          this.joinSuccess = 'Classroom joined successfully!'
+          
+          // Add notification
+          this.notifications.unshift({
+            id: Date.now(),
+            message: `You've joined a new classroom: ${this.getClassroomName(this.classroomCode)}`,
+            time: 'Just now',
+            read: false,
+            icon: 'fas fa-users'
+          })
+          this.updateUnreadCount()
+          
+          // Clear code after successful join
+          this.classroomCode = ''
+          
+          // Close modal after 1.5 seconds
+          setTimeout(() => {
+            this.toggleJoinClassroom()
+          }, 1500)
+        } else {
+          // Error case
+          this.joinError = 'Invalid classroom code. Please check and try again.'
+        }
+        this.joiningClass = false
+      }, 1500)
+    },
+    getClassroomName(code) {
+      const classrooms = {
+        'MATH101': 'Introduction to Calculus',
+        'PHYS202': 'Advanced Physics',
+        'BIO303': 'Molecular Biology'
+      }
+      return classrooms[code] || 'Unknown Classroom'
+    },
+    expandSidebar() {
+      if (this.hoverEnabled) {
+        this.isSidebarCollapsed = false
+      }
+    },
+    collapseSidebar() {
+      if (this.hoverEnabled) {
+        this.isSidebarCollapsed = true
+      }
     }
   },
   mounted() {
@@ -379,6 +444,12 @@ export default {
       }
       if (!e.target.closest('.profile-menu') && !e.target.closest('.profile-dropdown')) {
         this.showProfileMenu = false
+      }
+      if (!e.target.closest('.join-class') && !e.target.closest('.modal-container') && this.showJoinClassroom) {
+        // Only close if clicking outside and not in the middle of joining
+        if (!this.joiningClass) {
+          this.toggleJoinClassroom()
+        }
       }
     })
 
@@ -431,13 +502,17 @@ export default {
 .sidebar.collapsed .sidebar-header {
   justify-content: center;
   padding: 1.25rem 0.5rem;
+  align-items: center;
+}
+
+.sidebar.collapsed .logo-container {
+  margin: 0 auto;
 }
 
 .sidebar-header {
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   position: relative;
   height: 60px;
@@ -448,9 +523,9 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   border-radius: 50%;
   transition: all 0.3s ease;
   overflow: hidden;
@@ -495,39 +570,6 @@ export default {
 
 .collapse-btn:hover {
   color: white;
-}
-
-.sidebar-search {
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.search-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  background: rgba(255,255,255,0.1);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
-}
-
-.search-container i {
-  color: rgba(255,255,255,0.5);
-  font-size: 0.9rem;
-  margin-right: 0.5rem;
-}
-
-.search-container input {
-  background: transparent;
-  border: none;
-  color: white;
-  font-size: 0.9rem;
-  width: 100%;
-  outline: none;
-}
-
-.search-container input::placeholder {
-  color: rgba(255,255,255,0.5);
 }
 
 .nav-links {
@@ -631,41 +673,6 @@ export default {
   margin-top: auto;
 }
 
-.ai-tutor-btn {
-  width: 100%;
-  padding: 0.9rem;
-  background: #C84C1C;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  box-shadow: 0 4px 10px rgba(200, 76, 28, 0.3);
-}
-
-.btn-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  transition: transform 0.3s ease;
-}
-
-.ai-tutor-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(200, 76, 28, 0.4);
-  background: #d85a2a;
-}
-
-.ai-tutor-btn:hover .btn-icon {
-  transform: rotate(15deg);
-}
-
 /* Main Content Styles */
 .main-content {
   flex: 1;
@@ -752,6 +759,26 @@ export default {
   text-align: center;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   font-weight: 600;
+}
+
+.join-class {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.join-class:hover {
+  background: #f5f7fa;
+  color: #C84C1C;
 }
 
 .profile-menu {
@@ -1093,5 +1120,144 @@ export default {
   .profile-dropdown {
     width: calc(100% - 40px);
   }
+}
+
+/* Join Classroom Button */
+.join-class-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #666;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.join-class-btn:hover {
+  background: #f5f5f5;
+  color: #C84C1C;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-container {
+  background-color: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1A1A1A;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #666;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.close-btn:hover {
+  background: #f5f5f5;
+  color: #C84C1C;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-body p {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  color: #555;
+}
+
+.input-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.input-group input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+
+.join-btn {
+  background-color: #1a237e;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  min-width: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.join-btn:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #c62828;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.success-message {
+  color: #2e7d32;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style> 

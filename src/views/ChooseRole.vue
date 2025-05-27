@@ -29,7 +29,7 @@
             >
               <div class="role-icon">👩‍🏫</div>
               <h3>Teacher</h3>
-              <p>Create courses, manage students, and view analytics</p>
+              <p>View student progress and manage your classroom dashboard</p>
             </div>
           </div>
         </div>

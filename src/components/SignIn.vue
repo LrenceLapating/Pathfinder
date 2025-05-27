@@ -525,7 +525,7 @@ export default {
             if (data.user.role === 'student') {
               this.$router.push('/student');
             } else if (data.user.role === 'teacher') {
-              this.$router.push('/teacher/analytics');
+              this.$router.push('/teacher');
             } else {
               this.$router.push('/dashboard');
             }

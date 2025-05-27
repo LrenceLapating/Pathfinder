@@ -6,6 +6,19 @@ import './style.css'
 import { authMutations } from './store/auth'
 import ResetPassword from './components/ResetPassword.vue'
 import PasswordResetRedirect from './components/PasswordResetRedirect.vue'
+import NotFound from './views/not-found.vue'
+
+// Student views
+import StudentDashboard from './views/student/StudentDashboard.vue'
+import StudyGuide from './views/student/StudyGuide.vue'
+import QuizReview from './views/student/QuizReview.vue'
+import StudentProfile from './views/student/StudentProfile.vue'
+
+// Auth views
+import SignIn from './components/SignIn.vue'
+import SignUp from './components/SignUp.vue'
+import ForgotPassword from './components/ForgotPassword.vue'
+import ChooseRole from './views/ChooseRole.vue'
 
 Vue.use(Router)
 Vue.use(Meta)
@@ -22,6 +35,21 @@ const router = new Router({
       component: Home
     },
     {
+      path: '/signin',
+      name: 'signin',
+      component: SignIn
+    },
+    {
+      path: '/signup',
+      name: 'signup',
+      component: SignUp
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPassword
+    },
+    {
       path: '/reset-password',
       name: 'reset-password',
       // If we're on port 8080, use the redirect component, otherwise use the actual reset component
@@ -34,7 +62,7 @@ const router = new Router({
     {
       path: '/choose-role',
       name: 'choose-role',
-      component: () => import('./views/ChooseRole.vue'),
+      component: ChooseRole,
       meta: { requiresAuth: true }
     },
     {
@@ -51,7 +79,7 @@ const router = new Router({
         {
           path: '',
           name: 'student-dashboard',
-          component: () => import('./views/student/StudentDashboard.vue')
+          component: StudentDashboard
         },
         {
           path: 'performance',
@@ -59,9 +87,15 @@ const router = new Router({
           component: () => import('./components/student/PerformanceTracker.vue')
         },
         {
-          path: 'schedule',
-          name: 'student-schedule',
-          component: () => import('./components/student/SmartSchedule.vue')
+          path: 'classrooms',
+          name: 'student-classrooms',
+          component: () => import('./views/student/Classrooms.vue')
+        },
+        {
+          path: 'classroom/:id',
+          name: 'student-classroom-detail',
+          component: () => import('./views/student/ClassroomDetail.vue'),
+          props: true
         },
         {
           path: 'quiz/:id',
@@ -70,51 +104,35 @@ const router = new Router({
           props: true
         },
         {
-          path: 'modules',
-          name: 'student-modules',
-          component: () => import('./views/student/ModulesList.vue')
-        },
-        {
-          path: 'modules/:id',
-          name: 'student-module-detail',
-          component: () => import('./views/student/ModuleDetail.vue'),
-          props: true
-        },
-        {
-          path: 'adaptive-module/:id',
-          name: 'student-adaptive-module',
-          component: () => import('./components/student/AdaptiveModule.vue'),
-          props: true
-        },
-        {
-          path: 'analytics',
-          name: 'student-analytics',
-          component: () => import('./components/student/LearningAnalytics.vue')
-        },
-        {
-          path: 'remedial',
-          name: 'student-remedial',
-          component: () => import('./components/student/RemedialEnrichment.vue')
-        },
-        {
-          path: 'resources',
-          name: 'student-resources',
-          component: () => import('./views/student/ResourceLibrary.vue')
-        },
-        {
           path: 'profile',
           name: 'student-profile',
-          component: () => import('./views/student/StudentProfile.vue')
+          component: StudentProfile
         },
         {
-          path: 'activity',
-          name: 'student-activity',
-          component: () => import('./components/student/ActivityLog.vue')
+          path: 'study-guide',
+          name: 'study-guide',
+          component: StudyGuide,
+          meta: { requiresAuth: true, role: 'student' }
         },
         {
-          path: 'community',
-          name: 'student-community',
-          component: () => import('./components/student/StudentCommunity.vue')
+          path: 'study-guide/:id',
+          name: 'study-guide-detail',
+          component: StudyGuide,
+          props: true,
+          meta: { requiresAuth: true, role: 'student' }
+        },
+        {
+          path: 'quiz-review',
+          name: 'quiz-review',
+          component: QuizReview,
+          meta: { requiresAuth: true, role: 'student' }
+        },
+        {
+          path: 'quiz-review/:id',
+          name: 'quiz-review-detail',
+          component: QuizReview,
+          props: true,
+          meta: { requiresAuth: true, role: 'student' }
         }
       ]
     },
@@ -129,65 +147,35 @@ const router = new Router({
           component: () => import('./views/teacher/TeacherDashboard.vue')
         },
         {
-          path: 'students',
-          name: 'teacher-students',
-          component: () => import('./views/teacher/StudentRoster.vue')
+          path: 'profile',
+          name: 'teacher-profile',
+          component: () => import('./views/teacher/TeacherProfile.vue')
         },
         {
-          path: 'students/:id/performance',
-          name: 'teacher-student-performance',
-          component: () => import('./views/teacher/StudentPerformance.vue'),
+          path: 'classrooms',
+          name: 'teacher-classrooms',
+          component: () => import('./views/teacher/ClassroomManagement.vue')
+        },
+        {
+          path: 'classroom/:id',
+          name: 'teacher-classroom-detail',
+          component: () => import('./views/teacher/ClassroomDetail.vue'),
           props: true
         },
         {
-          path: 'modules',
-          name: 'teacher-modules',
-          component: () => import('./views/teacher/ModuleManagement.vue')
+          path: 'performance',
+          name: 'teacher-performance',
+          component: () => import('./views/teacher/StudentPerformance.vue')
         },
         {
-          path: 'quizzes',
-          name: 'teacher-quizzes',
-          component: () => import('./views/teacher/QuizBuilder.vue')
-        },
-        {
-          path: 'schedule',
-          name: 'teacher-schedule',
-          component: () => import('./views/teacher/SmartSchedulePlanner.vue')
+          path: 'score-upload',
+          name: 'teacher-score-upload',
+          component: () => import('./views/teacher/ScoreUpload.vue')
         },
         {
           path: 'analytics',
           name: 'teacher-analytics',
-          component: () => import('./views/teacher/LearningAnalytics.vue')
-        },
-        {
-          path: 'remedial-tools',
-          name: 'teacher-remedial',
-          component: () => import('./views/teacher/RemedialManager.vue')
-        },
-        {
-          path: 'resources',
-          name: 'teacher-resources',
-          component: () => import('./views/teacher/ResourceManager.vue')
-        },
-        {
-          path: 'messages',
-          name: 'teacher-messages',
-          component: () => import('./views/teacher/TeacherMessages.vue')
-        },
-        {
-          path: 'achievements',
-          name: 'teacher-achievements',
-          component: () => import('./views/teacher/AchievementManager.vue')
-        },
-        {
-          path: 'notifications',
-          name: 'teacher-notifications',
-          component: () => import('./views/teacher/NotificationCenter.vue')
-        },
-        {
-          path: 'profile',
-          name: 'teacher-profile',
-          component: () => import('./views/teacher/TeacherProfile.vue')
+          component: () => import('./views/teacher/PerformanceAnalytics.vue')
         }
       ]
     },

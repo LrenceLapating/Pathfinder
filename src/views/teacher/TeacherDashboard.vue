@@ -1,173 +1,227 @@
 <template>
   <div class="teacher-dashboard">
+    <!-- Welcome Header -->
+    <div class="welcome-header">
+      <h1>Welcome, {{ teacherName }}</h1>
+      <p>Here's an overview of your teaching progress</p>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="quick-actions">
+      <button class="action-btn create-classroom" @click="showCreateClassroomModal = true">
+        <i class="fas fa-chalkboard"></i>
+        <span>Create Classroom</span>
+      </button>
+      <button class="action-btn assign-study" @click="showStudyGuideModal = true">
+        <i class="fas fa-book"></i>
+        <span>Assign Study Guide</span>
+      </button>
+      <button class="action-btn upload-scores" @click="navigateToScoreUpload">
+        <i class="fas fa-upload"></i>
+        <span>Upload Scores</span>
+      </button>
+      <button class="action-btn view-analytics" @click="navigateToAnalytics">
+        <i class="fas fa-chart-bar"></i>
+        <span>View Analytics</span>
+      </button>
+    </div>
+
     <!-- Overview Stats -->
     <div class="dashboard-grid">
       <div class="stat-card">
         <div class="stat-icon">
-          <i class="fas fa-users"></i>
+          <i class="fas fa-chalkboard"></i>
         </div>
         <div class="stat-content">
-          <h3>Total Students</h3>
-          <div class="stat-value">{{ totalStudents }}</div>
-          <div class="stat-change positive">
-            <i class="fas fa-arrow-up"></i>
-            <span>5% from last month</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-book"></i>
-        </div>
-        <div class="stat-content">
-          <h3>Active Classes</h3>
+          <h3>Total Classrooms</h3>
           <div class="stat-value">{{ classes.length }}</div>
           <div class="stat-change">
-            <span>No change</span>
+            <span>Active classrooms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon risk-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stat-content">
+          <h3>At-Risk Students</h3>
+          <div class="stat-value">{{ atRiskStudents }}</div>
+          <div class="stat-change negative" v-if="atRiskStudents > 0">
+            <i class="fas fa-arrow-up"></i>
+            <span>Needs attention</span>
+          </div>
+          <div class="stat-change positive" v-else>
+            <i class="fas fa-check"></i>
+            <span>All students on track</span>
           </div>
         </div>
       </div>
 
       <div class="stat-card">
         <div class="stat-icon">
-          <i class="fas fa-chart-line"></i>
+          <i class="fas fa-book-open"></i>
         </div>
         <div class="stat-content">
-          <h3>Average Performance</h3>
-          <div class="stat-value">{{ averagePerformance }}%</div>
-          <div class="stat-change positive">
-            <i class="fas fa-arrow-up"></i>
-            <span>2.5% from last month</span>
+          <h3>Subjects Covered</h3>
+          <div class="stat-value">{{ subjectsCovered }}</div>
+          <div class="stat-change">
+            <span>Across all classrooms</span>
           </div>
         </div>
       </div>
 
       <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-tasks"></i>
+        <div class="stat-icon alert-icon">
+          <i class="fas fa-bell"></i>
         </div>
         <div class="stat-content">
-          <h3>Pending Tasks</h3>
-          <div class="stat-value">{{ pendingTasks }}</div>
-          <div class="stat-change negative">
+          <h3>Performance Alerts</h3>
+          <div class="stat-value">{{ performanceAlerts.length }}</div>
+          <div class="stat-change negative" v-if="performanceAlerts.length > 0">
             <i class="fas fa-arrow-up"></i>
-            <span>3 more than yesterday</span>
+            <span>{{ performanceAlerts.length }} alerts to review</span>
+          </div>
+          <div class="stat-change positive" v-else>
+            <i class="fas fa-check"></i>
+            <span>No alerts</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Class Overview -->
-    <div class="dashboard-row">
-      <div class="dashboard-card flex-2">
+    <!-- Performance Alerts Section -->
+    <div class="dashboard-row" v-if="performanceAlerts.length > 0">
+      <div class="dashboard-card flex-1">
         <div class="card-header">
-          <h2>Class Overview</h2>
-          <div class="card-actions">
-            <button class="btn-outline" @click="$router.push('/teacher/schedule')">
-              <i class="fas fa-plus"></i> Add Class
+          <h2>Recent Performance Alerts</h2>
+        </div>
+        <div class="alerts-list">
+          <div v-for="alert in performanceAlerts" :key="alert.id" class="alert-item">
+            <div class="alert-icon">
+              <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <div class="alert-content">
+              <p class="alert-text">{{ alert.message }}</p>
+              <span class="alert-subject">{{ alert.subject }}</span>
+            </div>
+            <button class="alert-action-btn">
+              <i class="fas fa-chevron-right"></i>
             </button>
           </div>
         </div>
-        <div class="class-grid">
-          <div v-for="classItem in classes" :key="classItem.id" class="class-card">
-            <div class="class-header">
-              <h3>{{ classItem.name }}</h3>
-              <span class="class-badge">{{ classItem.students }} Students</span>
-            </div>
-            <div class="class-stats">
-              <div class="progress-stat">
-                <div class="stat-label">
-                  <span>Progress</span>
-                  <span>{{ classItem.progress }}%</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress" :style="{ width: classItem.progress + '%' }"></div>
-                </div>
-              </div>
-              <div class="progress-stat">
-                <div class="stat-label">
-                  <span>Average Score</span>
-                  <span>{{ classItem.averageScore }}%</span>
-                </div>
-                <div class="progress-bar">
-                  <div class="progress" :style="{ width: classItem.averageScore + '%' }"></div>
-                </div>
-              </div>
-            </div>
-            <div class="class-actions">
-              <button class="btn-text" @click="viewClassDetails(classItem)">
-                View Details
-              </button>
-              <button class="btn-text" @click="manageClass(classItem)">
-                Manage
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
+    </div>
 
+    <!-- Classroom Management -->
+    <div class="dashboard-row">
       <div class="dashboard-card flex-1">
         <div class="card-header">
-          <h2>Recent Activities</h2>
+          <h2>Your Classrooms</h2>
           <div class="card-actions">
-            <button class="btn-text">View All</button>
+            <button class="btn-add" @click="showCreateClassroomModal = true">
+              <i class="fas fa-plus"></i> Add New
+            </button>
+            <button class="btn-text" @click="$router.push('/teacher/classrooms')">
+              View All <i class="fas fa-arrow-right"></i>
+            </button>
           </div>
         </div>
-        <div class="activity-list">
-          <div v-for="activity in recentActivities" :key="activity.id" class="activity-item">
-            <div class="activity-icon">
-              <i :class="activity.icon"></i>
+        <div class="classroom-grid">
+          <div v-for="classroom in classrooms" :key="classroom.id" class="classroom-card">
+            <div class="classroom-header">
+              <h3>{{ classroom.subject }}</h3>
+              <div class="classroom-actions">
+                <button class="action-icon-btn" title="View Classroom" @click="viewClassroom(classroom.id)">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="action-icon-btn" title="Archive Classroom">
+                  <i class="fas fa-archive"></i>
+                </button>
+                <button class="action-icon-btn" title="Delete Classroom">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
             </div>
-            <div class="activity-content">
-              <p class="activity-text">{{ activity.text }}</p>
-              <span class="activity-time">{{ activity.time }}</span>
+            <div class="classroom-details">
+              <div class="detail-item">
+                <i class="fas fa-users"></i>
+                <span>{{ classroom.students }} Students</span>
+              </div>
+              <div class="detail-item">
+                <i class="fas fa-key"></i>
+                <span>Code: <strong>{{ classroom.code }}</strong></span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Performance Analytics -->
-    <div class="dashboard-row">
-      <div class="dashboard-card flex-2">
-        <div class="card-header">
-          <h2>Performance Analytics</h2>
-          <div class="card-actions">
-            <select v-model="selectedTimeframe" class="select-input">
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-              <option value="quarter">This Quarter</option>
+    <!-- Create Classroom Modal -->
+    <div class="modal-overlay" v-if="showCreateClassroomModal" @click="closeModal">
+      <div class="modal-container" @click.stop>
+        <div class="modal-header">
+          <h2>Create New Classroom</h2>
+          <button class="close-modal-btn" @click="closeModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="subject-name">Subject Name</label>
+            <input type="text" id="subject-name" v-model="newClassroom.subject" placeholder="e.g. Algebra, Physics, English" />
+          </div>
+          <div class="form-group code-display" v-if="newClassroom.code">
+            <label>Classroom Code</label>
+            <div class="code-container">
+              <span class="generated-code">{{ newClassroom.code }}</span>
+              <button class="copy-btn" @click="copyCode" title="Copy Code">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <p class="code-help">Share this code with your students to join the classroom</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel-btn" @click="closeModal">Cancel</button>
+          <button class="create-btn" @click="createClassroom" :disabled="!newClassroom.subject">
+            Create Classroom
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assign Study Guide Modal -->
+    <div class="modal-overlay" v-if="showStudyGuideModal" @click="closeModal">
+      <div class="modal-container" @click.stop>
+        <div class="modal-header">
+          <h2>Assign Study Guide</h2>
+          <button class="close-modal-btn" @click="closeModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="classroom-select">Select Classroom</label>
+            <select id="classroom-select" v-model="selectedClassroom">
+              <option value="" disabled>Choose a classroom</option>
+              <option v-for="classroom in classrooms" :key="classroom.id" :value="classroom.id">
+                {{ classroom.subject }}
+              </option>
             </select>
           </div>
-        </div>
-        <div class="analytics-content">
-          <div class="chart-container">
-            <!-- Chart component will go here -->
-            <div class="chart-placeholder">Performance Chart</div>
+          <div class="form-group">
+            <label for="guide-topic">Study Guide Topic</label>
+            <input type="text" id="guide-topic" v-model="studyGuide.topic" placeholder="e.g. Quadratic Equations" />
           </div>
         </div>
-      </div>
-
-      <div class="dashboard-card flex-1">
-        <div class="card-header">
-          <h2>Upcoming Tasks</h2>
-          <div class="card-actions">
-            <button class="btn-text">View Calendar</button>
-          </div>
-        </div>
-        <div class="task-list">
-          <div v-for="task in upcomingTasks" :key="task.id" class="task-item">
-            <div class="task-status" :class="{ 'urgent': task.isUrgent }"></div>
-            <div class="task-content">
-              <h4>{{ task.title }}</h4>
-              <p>{{ task.description }}</p>
-              <span class="task-due">Due: {{ task.dueDate }}</span>
-            </div>
-            <button class="btn-icon" @click="completeTask(task)">
-              <i class="fas fa-check"></i>
-            </button>
-          </div>
+        <div class="modal-footer">
+          <button class="cancel-btn" @click="closeModal">Cancel</button>
+          <button class="create-btn" @click="assignStudyGuide" :disabled="!selectedClassroom || !studyGuide.topic">
+            Assign Guide
+          </button>
         </div>
       </div>
     </div>
@@ -180,7 +234,38 @@ export default {
   
   data() {
     return {
+      teacherName: 'Ms. Johnson',
+      showCreateClassroomModal: false,
+      showStudyGuideModal: false,
       selectedTimeframe: 'week',
+      selectedClassroom: '',
+      newClassroom: {
+        subject: '',
+        code: ''
+      },
+      studyGuide: {
+        topic: ''
+      },
+      classrooms: [
+        {
+          id: 1,
+          subject: 'Mathematics 101',
+          students: 25,
+          code: 'MATH101'
+        },
+        {
+          id: 2,
+          subject: 'Physics Advanced',
+          students: 22,
+          code: 'PHYS202'
+        },
+        {
+          id: 3,
+          subject: 'Chemistry Basics',
+          students: 18,
+          code: 'CHEM100'
+        }
+      ],
       classes: [
         {
           id: 1,
@@ -198,115 +283,227 @@ export default {
         },
         {
           id: 3,
-          name: 'Chemistry Lab',
+          name: 'Chemistry Basics',
           students: 18,
-          progress: 85,
+          progress: 92,
           averageScore: 88
         }
       ],
-      recentActivities: [
+      performanceAlerts: [
         {
           id: 1,
-          icon: 'fas fa-file-alt',
-          text: 'John Doe submitted Assignment 3',
-          time: '5 minutes ago'
+          message: '5 students showing weakness in Algebra',
+          subject: 'Mathematics 101'
         },
         {
           id: 2,
-          icon: 'fas fa-user-graduate',
-          text: 'Sarah Wilson completed Quiz 2',
-          time: '15 minutes ago'
+          message: '3 students struggling with Force & Motion concepts',
+          subject: 'Physics Advanced'
         },
         {
           id: 3,
-          icon: 'fas fa-question-circle',
-          text: 'New question in Physics forum',
-          time: '1 hour ago'
-        }
-      ],
-      upcomingTasks: [
-        {
-          id: 1,
-          title: 'Grade Midterm Papers',
-          description: 'Review and grade Period 1 midterm exams',
-          dueDate: 'Tomorrow',
-          isUrgent: true
-        },
-        {
-          id: 2,
-          title: 'Parent-Teacher Meeting',
-          description: 'Virtual meeting with student parents',
-          dueDate: 'Next Week',
-          isUrgent: false
+          message: '2 students need help with Chemical Reactions',
+          subject: 'Chemistry Basics'
         }
       ]
-    }
+    };
   },
-
+  
   computed: {
     totalStudents() {
-      return this.classes.reduce((sum, classItem) => sum + classItem.students, 0)
+      return this.classrooms.reduce((total, cls) => total + cls.students, 0);
     },
-
-    averagePerformance() {
-      const total = this.classes.reduce((sum, classItem) => sum + classItem.averageScore, 0)
-      return Math.round(total / this.classes.length)
+    
+    atRiskStudents() {
+      // In a real application, this would be calculated based on performance data
+      return 10;
     },
-
-    pendingTasks() {
-      return this.upcomingTasks.length
+    
+    subjectsCovered() {
+      // Count unique subjects
+      const subjects = new Set(this.classrooms.map(c => c.subject));
+      return subjects.size;
     }
   },
-
+  
   methods: {
-    viewClassDetails(classItem) {
-      this.$router.push(`/teacher/classes/${classItem.id}`)
+    closeModal() {
+      this.showCreateClassroomModal = false;
+      this.showStudyGuideModal = false;
     },
-
-    manageClass(classItem) {
-      this.$router.push(`/teacher/classes/${classItem.id}/manage`)
+    
+    createClassroom() {
+      if (this.newClassroom.subject) {
+        // Generate a random code if not already generated
+        if (!this.newClassroom.code) {
+          this.newClassroom.code = this.generateClassroomCode();
+        }
+      }
     },
-
-    completeTask(task) {
-      // Implement task completion logic
-      console.log('Completing task:', task)
+    
+    generateClassroomCode() {
+      // Generate a random 6-character alphanumeric code
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    },
+    
+    copyCode() {
+      navigator.clipboard.writeText(this.newClassroom.code)
+        .then(() => {
+          // Show a notification that the code was copied
+          alert('Code copied to clipboard!');
+        })
+        .catch(err => {
+          console.error('Failed to copy code: ', err);
+        });
+    },
+    
+    viewClassroom(id) {
+      this.$router.push(`/teacher/classroom/${id}`);
+    },
+    
+    assignStudyGuide() {
+      if (this.selectedClassroom && this.studyGuide.topic) {
+        // In a real application, this would save the study guide to the database
+        console.log(`Assigned study guide '${this.studyGuide.topic}' to classroom ID ${this.selectedClassroom}`);
+        this.closeModal();
+        this.studyGuide.topic = '';
+        this.selectedClassroom = '';
+      }
+    },
+    
+    navigateToScoreUpload() {
+      this.$router.push('/teacher/score-upload');
+    },
+    
+    navigateToAnalytics() {
+      this.$router.push('/teacher/analytics');
     }
   }
-}
+};
 </script>
 
 <style scoped>
 .teacher-dashboard {
-  padding: 1.5rem;
+  padding: 20px;
+}
+
+.welcome-header {
+  margin-bottom: 30px;
+}
+
+.welcome-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.welcome-header p {
+  font-size: 16px;
+  color: #666;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn i {
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+.create-classroom {
+  background-color: #3b7ddd;
+  color: white;
+}
+
+.create-classroom:hover {
+  background-color: #2d6bbd;
+}
+
+.assign-study {
+  background-color: #10b981;
+  color: white;
+}
+
+.assign-study:hover {
+  background-color: #0ca876;
+}
+
+.upload-scores {
+  background-color: #6366f1;
+  color: white;
+}
+
+.upload-scores:hover {
+  background-color: #4f46e5;
+}
+
+.view-analytics {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.view-analytics:hover {
+  background-color: #e59300;
 }
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 .stat-card {
-  background-color: white;
-  border-radius: 1rem;
-  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 1rem;
-  background-color: #e0f2fe;
-  color: #0ea5e9;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: rgba(59, 125, 221, 0.1);
+  color: #3b7ddd;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 24px;
+  margin-right: 20px;
+}
+
+.risk-icon {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.alert-icon {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
 }
 
 .stat-content {
@@ -314,25 +511,28 @@ export default {
 }
 
 .stat-content h3 {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #64748b;
+  margin: 0 0 5px;
+  font-size: 14px;
   font-weight: 500;
+  color: #666;
 }
 
 .stat-value {
-  font-size: 1.875rem;
+  font-size: 28px;
   font-weight: 600;
-  color: #1e293b;
-  margin: 0.5rem 0;
+  color: #333;
+  margin-bottom: 5px;
 }
 
 .stat-change {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: 12px;
+  color: #666;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+}
+
+.stat-change i {
+  margin-right: 5px;
 }
 
 .stat-change.positive {
@@ -345,27 +545,24 @@ export default {
 
 .dashboard-row {
   display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 .dashboard-card {
-  background-color: white;
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 .flex-1 {
   flex: 1;
 }
 
-.flex-2 {
-  flex: 2;
-}
-
 .card-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -373,276 +570,310 @@ export default {
 
 .card-header h2 {
   margin: 0;
-  font-size: 1.25rem;
-  color: #1e293b;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.card-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn-outline {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background-color: white;
-  color: #1e293b;
-  font-size: 0.875rem;
+.btn-add {
+  background-color: #3b7ddd;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
+  gap: 6px;
 }
 
-.btn-outline:hover {
-  border-color: #94a3b8;
-  background-color: #f8fafc;
+.btn-add:hover {
+  background-color: #2d6bbd;
 }
 
 .btn-text {
   background: none;
   border: none;
-  color: #2563eb;
-  font-size: 0.875rem;
+  color: #3b7ddd;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btn-text:hover {
   text-decoration: underline;
 }
 
-.class-grid {
-  padding: 1.5rem;
+.card-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.alerts-list {
+  padding: 10px 0;
+}
+
+.alert-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.alert-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-text {
+  margin: 0 0 5px;
+  font-size: 14px;
+  color: #333;
+}
+
+.alert-subject {
+  font-size: 12px;
+  color: #666;
+}
+
+.alert-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #f3f4f6;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.classroom-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 20px;
 }
 
-.class-card {
-  background-color: #f8fafc;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
+.classroom-card {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #f9fafb;
 }
 
-.class-header {
+.classroom-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 15px;
 }
 
-.class-header h3 {
+.classroom-header h3 {
   margin: 0;
-  font-size: 1rem;
-  color: #1e293b;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.class-badge {
-  background-color: #e0f2fe;
-  color: #0ea5e9;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-}
-
-.class-stats {
-  margin-bottom: 1rem;
-}
-
-.progress-stat {
-  margin-bottom: 0.75rem;
-}
-
-.stat-label {
+.classroom-actions {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 0.25rem;
+  gap: 8px;
 }
 
-.progress-bar {
-  height: 6px;
-  background-color: #e2e8f0;
-  border-radius: 9999px;
+.action-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  background-color: #fff;
+  border: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-icon-btn:hover {
+  background-color: #f3f4f6;
+}
+
+.classroom-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #666;
+}
+
+.detail-item i {
+  margin-right: 10px;
+  color: #3b7ddd;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background-color: #fff;
+  border-radius: 10px;
+  width: 500px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.progress {
-  height: 100%;
-  background-color: #2563eb;
-  border-radius: 9999px;
-  transition: width 0.3s ease;
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.class-actions {
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #666;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b7ddd;
+}
+
+.code-display {
+  background-color: #f3f4f6;
+  padding: 15px;
+  border-radius: 6px;
+}
+
+.code-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.generated-code {
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  color: #3b7ddd;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.code-help {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #666;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: 10px;
 }
 
-.activity-list {
-  padding: 1.5rem;
-}
-
-.activity-item {
-  display: flex;
-  align-items: start;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.activity-item:last-child {
-  border-bottom: none;
-}
-
-.activity-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: #e0f2fe;
-  color: #0ea5e9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.activity-content {
-  flex: 1;
-}
-
-.activity-text {
-  margin: 0;
-  color: #1e293b;
-  font-size: 0.875rem;
-}
-
-.activity-time {
-  display: block;
-  margin-top: 0.25rem;
-  color: #64748b;
-  font-size: 0.75rem;
-}
-
-.select-input {
-  padding: 0.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  color: #1e293b;
-  background-color: white;
-}
-
-.chart-container {
-  padding: 1.5rem;
-  height: 300px;
-}
-
-.chart-placeholder {
-  height: 100%;
-  background-color: #f8fafc;
-  border: 2px dashed #e2e8f0;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-}
-
-.task-list {
-  padding: 1.5rem;
-}
-
-.task-item {
-  display: flex;
-  align-items: start;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f8fafc;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.task-status {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #64748b;
-  margin-top: 0.5rem;
-}
-
-.task-status.urgent {
-  background-color: #ef4444;
-}
-
-.task-content {
-  flex: 1;
-}
-
-.task-content h4 {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #1e293b;
-}
-
-.task-content p {
-  margin: 0.25rem 0;
-  font-size: 0.875rem;
-  color: #64748b;
-}
-
-.task-due {
-  display: block;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 0.5rem;
-}
-
-.btn-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+.cancel-btn {
+  padding: 10px 16px;
+  background-color: #f3f4f6;
   border: none;
-  background-color: white;
-  color: #64748b;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
 }
 
-.btn-icon:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
+.create-btn {
+  padding: 10px 16px;
+  background-color: #3b7ddd;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
-@media (max-width: 1024px) {
-  .dashboard-row {
-    flex-direction: column;
-  }
-
-  .flex-1,
-  .flex-2 {
-    flex: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .teacher-dashboard {
-    padding: 1rem;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .class-grid {
-    grid-template-columns: 1fr;
-  }
+.create-btn:disabled {
+  background-color: #a3bce0;
+  cursor: not-allowed;
 }
 </style> 
